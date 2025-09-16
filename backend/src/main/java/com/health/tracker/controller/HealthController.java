@@ -12,6 +12,7 @@ public class HealthController {
     @Autowired
     private JdbcTemplate jdbc;
 
+//api for users
     @PostMapping("/users")
     public String addUser(@RequestBody User user){
         jdbc.update("INSERT INTO User(name,email,age,weight,height) VALUES(?,?,?,?,?)",
@@ -19,6 +20,7 @@ public class HealthController {
         return "User added!";
     }
 
+//api for exercise
     @PostMapping("/exercise")
     public String addExercise(@RequestBody Exercise ex){
         jdbc.update("INSERT INTO Exercise(user_id, exercise_name, duration_minutes, calories_burned) VALUES(?,?,?,?)",
@@ -26,6 +28,7 @@ public class HealthController {
         return "Exercise logged!";
     }
 
+//api for meal
     @PostMapping("/meal")
     public String addMeal(@RequestBody Meal meal){
         jdbc.update("INSERT INTO Meal(user_id, meal_name, calories_consumed) VALUES(?,?,?)",
@@ -33,6 +36,7 @@ public class HealthController {
         return "Meal logged!";
     }
 
+//api for bmi
     @PostMapping("/bmi")
     public String updateBMI(@RequestParam int userId, @RequestParam float weight){
         jdbc.update("CALL UpdateBMI(?, ?)", userId, weight);
