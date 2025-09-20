@@ -43,38 +43,9 @@ CREATE TABLE HealthMetric (
                               FOREIGN KEY (user_id) REFERENCES User(user_id) ON DELETE CASCADE
 );
 
-DELIMITER //
-CREATE PROCEDURE UpdateBMI(IN uid INT, IN newWeight FLOAT)
-BEGIN
-    DECLARE h FLOAT;
-SELECT height INTO h FROM User WHERE user_id = uid;
-INSERT INTO HealthMetric(user_id, date, weight, BMI)
-VALUES(uid, CURDATE(), newWeight, newWeight/(h*h))
-    ON DUPLICATE KEY UPDATE weight=newWeight, BMI=newWeight/(h*h);
-END //
-DELIMITER ;
 
-DELIMITER //
 
-CREATE TRIGGER CalorieLimitAlert
-    AFTER INSERT ON Meal
-    FOR EACH ROW
-BEGIN
-    DECLARE totalCalories FLOAT;
 
-    -- Sum calories for the current user for today
-    SELECT SUM(calories_consumed) INTO totalCalories
-    FROM Meal
-    WHERE user_id = NEW.user_id AND DATE(date) = CURDATE();
-
-    -- Check if total exceeds 2000
-    IF totalCalories > 2000 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Daily calorie limit exceeded!';
-END IF;
-END;
-//
-
-DELIMITER ;
 
 
 ALTER TABLE Exercise MODIFY date DATETIME DEFAULT CURRENT_TIMESTAMP;
