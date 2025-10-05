@@ -7,7 +7,7 @@ const Exercises = () => {
     useEffect(() => {
         axios.get("http://localhost:8080/api/exercise")
             .then(res => setExercises(res.data))
-            .catch(err => console.error("Error fetching exercises:", err));
+            .catch(err => console.error("Error fetching Exercises.jsx:", err));
     }, []);
 
     return (

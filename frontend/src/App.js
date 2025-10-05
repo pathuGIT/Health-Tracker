@@ -7,6 +7,7 @@ import AddExercise from "./components/AddExercise";
 import AddMeal from "./components/AddMeal";
 import UpdateBMI from "./components/UpdateBMI";
 import Navigation from "./components/Navigation";
+import Users from "./pages/Users";
 
 function App() {
     const [users, setUsers] = useState([]);
@@ -29,7 +30,7 @@ function App() {
     const fetchExercises = () => {
         axios.get("http://localhost:8080/api/exercise")
             .then(res => setExercises(res.data))
-            .catch(err => console.error("Error fetching exercises:", err));
+            .catch(err => console.error("Error fetching Exercises.jsx:", err));
     };
 
     const fetchMeals = () => {
