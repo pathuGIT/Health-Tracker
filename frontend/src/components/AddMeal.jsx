@@ -1,14 +1,20 @@
 // src/components/AddMeal.jsx
-import axios from "axios";
 import { useState } from "react";
+import { motion } from "framer-motion";
+import api from '../services/Api';
 
 const AddMeal = ({ onMealAdded }) => {
-    const [userId, setUserId] = useState("");
+    const [userId, setUserId] = useState("1"); 
     const [name, setName] = useState("");
     const [calories, setCalories] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const handleSubmit = () => {
-        axios.post("http://localhost:8080/api/meal", {
+        setError(null);
+        setLoading(true);
+
+        api.post("/meal", {
             userId: parseInt(userId),
             mealName: name,
             caloriesConsumed: parseFloat(calories)
@@ -17,53 +23,78 @@ const AddMeal = ({ onMealAdded }) => {
                 alert("Meal logged successfully!");
                 onMealAdded();
                 // Clear form
-                setUserId("");
                 setName("");
                 setCalories("");
             })
             .catch(err => {
                 console.error(err);
-                alert("Error logging meal");
+                setError(err.response?.data || "Error logging meal. Check if User ID exists and server is running.");
+            })
+            .finally(() => {
+                setLoading(false);
             });
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Add Meal</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-2 space-y-6">
+            <p className="text-text-muted">
+                Track your calorie intake with a new meal entry.
+            </p>
+            {error && (
+                <motion.div 
+                    className="text-accent-red bg-red-100 p-3 rounded-xl text-sm border border-red-200"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                >
+                    {error.toString()}
+                </motion.div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">User ID</label>
+                    <label className="block text-sm font-medium text-text-dark mb-1">User ID</label>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        type="number"
+                        className="input-field bg-gray-50 cursor-not-allowed"
                         placeholder="Enter user ID"
                         value={userId}
                         onChange={e => setUserId(e.target.value)}
+                        disabled
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Meal Name</label>
+                    <label className="block text-sm font-medium text-text-dark mb-1">Meal Name</label>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter meal name"
+                        className="input-field"
+                        placeholder="Breakfast, Lunch, Snack..."
                         value={name}
                         onChange={e => setName(e.target.value)}
                     />
                 </div>
                 <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Calories</label>
+                    <label className="block text-sm font-medium text-text-dark mb-1">Calories Consumed</label>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter calories"
+                        type="number"
+                        step="0.1"
+                        className="input-field"
+                        placeholder="e.g., 550"
                         value={calories}
                         onChange={e => setCalories(e.target.value)}
                     />
                 </div>
             </div>
             <button
-                className="mt-6 px-6 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors"
+                className="w-full btn-primary"
                 onClick={handleSubmit}
+                disabled={loading}
             >
-                Log Meal
+                {loading ? (
+                    <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Logging Meal...
+                    </span>
+                ) : (
+                    "Log Meal"
+                )}
             </button>
         </div>
     );

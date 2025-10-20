@@ -3,6 +3,9 @@ import React from "react";
 
 const Navigation = ({ activeTab, setActiveTab }) => {
     const navItems = [
+        // Added 'login' and 'register'
+        { id: "login", label: "Login", icon: "🔑" },
+        { id: "register", label: "Register", icon: "📝" },
         { id: "dashboard", label: "Dashboard", icon: "📊" },
         { id: "users", label: "Users", icon: "👥" },
         { id: "exercises", label: "Exercises", icon: "💪" },
