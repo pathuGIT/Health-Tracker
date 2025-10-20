@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { getMealsByUser } from "../services/MealService"; // <-- use service
+
+const DEMO_USER_ID = 1; // or get from props/context
 
 const Meals = () => {
     const [meals, setMeals] = useState([]);
 
     useEffect(() => {
-        axios.get("http://localhost:8080/api/meal")
+        getMealsByUser(DEMO_USER_ID)
             .then(res => setMeals(res.data))
             .catch(err => console.error("Error fetching meals:", err));
     }, []);

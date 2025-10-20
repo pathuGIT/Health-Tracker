@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { getExercisesByUser } from "../services/ExerciseService"; // <-- use service
+
+const DEMO_USER_ID = 1; // or get from props/context
 
 const Exercises = () => {
     const [exercises, setExercises] = useState([]);
@@ -12,16 +14,8 @@ const Exercises = () => {
                 setLoading(true);
                 setError(null);
 
-                const response = await axios.get("http://localhost:8080/api/exercise", {
-                    timeout: 10000,
-                    headers: {
-                        'Accept': 'application/json',
-                    }
-                });
+                const response = await getExercisesByUser(DEMO_USER_ID);
 
-                console.log("Exercises API Response:", response);
-
-                // Handle different response structures
                 let exercisesData = response.data;
 
                 if (exercisesData && exercisesData.data) {

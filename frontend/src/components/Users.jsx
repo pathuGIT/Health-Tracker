@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { getAllUsers } from "../services/UserService"; // <-- use service
 
 const Users = () => {
     const [users, setUsers] = useState([]);
@@ -12,16 +12,8 @@ const Users = () => {
                 setLoading(true);
                 setError(null);
 
-                const response = await axios.get("http://localhost:8080/api/users", {
-                    timeout: 10000,
-                    headers: {
-                        'Accept': 'application/json',
-                    }
-                });
+                const response = await getAllUsers();
 
-                console.log("Users API Response:", response);
-
-                // Handle different response structures
                 let usersData = response.data;
 
                 if (usersData && usersData.data) {
