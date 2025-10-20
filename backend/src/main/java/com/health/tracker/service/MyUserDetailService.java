@@ -1,6 +1,10 @@
 package com.health.tracker.service;
 
 import com.health.tracker.dto.LoadUser;
+import com.health.tracker.dto.LoadUserRole;
+import com.health.tracker.entity.Admin;
+import com.health.tracker.entity.Users;
+import com.health.tracker.repository.AdminRepository;
 import com.health.tracker.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.User;
@@ -16,7 +20,7 @@ public class MyUserDetailService implements UserDetailsService {
     private UserRepository userRepo;
 
     @Autowired
-    private EmployeeRepo employeeRepo;
+    private AdminRepository adminRepository;
 
     @Override
     public UserDetails loadUserByUsername(String loginInput) throws UsernameNotFoundException {
@@ -29,9 +33,9 @@ public class MyUserDetailService implements UserDetailsService {
             if (user != null) {
                 loadUser = mapToLoadUser(user);
             } else {
-                Employees emp = employeeRepo.findByEmail(loginInput);
-                if (emp != null) {
-                    loadUser = mapToLoadUser(emp);
+                Admin admin = adminRepository.findByEmail(loginInput);
+                if (admin != null) {
+                    loadUser = mapToLoadUser(admin);
                 }
             }
         } else {
@@ -40,9 +44,9 @@ public class MyUserDetailService implements UserDetailsService {
             if (user != null) {
                 loadUser = mapToLoadUser(user);
             } else {
-                Employees emp = employeeRepo.findByContact(loginInput);
-                if (emp != null) {
-                    loadUser = mapToLoadUser(emp);
+                Admin admin = adminRepository.findByContact(loginInput);
+                if (admin != null) {
+                    loadUser = mapToLoadUser(admin);
                 }
             }
         }
@@ -73,14 +77,14 @@ public class MyUserDetailService implements UserDetailsService {
         return loadUser;
     }
 
-    private LoadUser mapToLoadUser(Employees emp) {
+    private LoadUser mapToLoadUser(Admin admin) {
         LoadUser loadUser = new LoadUser();
-        loadUser.setId(emp.getId());
-        loadUser.setEmail(emp.getEmail());
-        loadUser.setContact(emp.getContact());
-        loadUser.setRole(LoadUserRole.valueOf(emp.getRole().name()));
-        loadUser.setPassword(emp.getPassword());
-        loadUser.setRefresh_token(emp.getRefresh_token());
+        loadUser.setId(admin.getId());
+        loadUser.setEmail(admin.getEmail());
+        loadUser.setContact(admin.getContact());
+        loadUser.setRole(LoadUserRole.valueOf(admin.getRole().name()));
+        loadUser.setPassword(admin.getPassword());
+        loadUser.setRefresh_token(admin.getRefresh_token());
         return loadUser;
     }
 }

@@ -2,7 +2,7 @@
 package com.health.tracker.service;
 
 import com.health.tracker.dto.UserProfileDTO;
-import com.health.tracker.entity.User;
+import com.health.tracker.entity.Users;
 import com.health.tracker.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,25 +17,39 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    public User createUser(User user) {
-        return userRepository.save(user);
+//    public Users createUser(Users users) {
+//        return userRepository.save(users);
+//    }
+
+    public Map<String, String> getUserById(int userId) {
+        Optional<Users> userResults = userRepository.findById(userId);
+        Map<String, String> result = new HashMap<>();
+
+        if (userResults != null && !userResults.isEmpty()) {
+            Users user = userResults.get();
+            result.put("userId", String.valueOf(user.getId()));
+            result.put("name", user.getName());
+            result.put("email", user.getEmail());
+            result.put("contact", String.valueOf(user.getContact()));
+            result.put("age", String.valueOf(user.getAge()));
+            result.put("currentWeight", String.valueOf(user.getWeight()));
+            result.put("height", String.valueOf(user.getHeight()));
+        }
+
+        return result;
     }
 
-    public Optional<User> getUserById(int userId) {
-        return userRepository.findById(userId);
-    }
-
-    public User updateUser(int userId, User userDetails) {
-        User user = userRepository.findById(userId)
+    public Users updateUser(int userId, Users usersDetails) {
+        Users users = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        user.setName(userDetails.getName());
-        user.setEmail(userDetails.getEmail());
-        user.setAge(userDetails.getAge());
-        user.setWeight(userDetails.getWeight());
-        user.setHeight(userDetails.getHeight());
+        users.setName(usersDetails.getName());
+        users.setEmail(usersDetails.getEmail());
+        users.setAge(usersDetails.getAge());
+        users.setWeight(usersDetails.getWeight());
+        users.setHeight(usersDetails.getHeight());
 
-        return userRepository.save(user);
+        return userRepository.save(users);
     }
 
     public Map<String, Object> getUserProfile(int userId) {
@@ -56,15 +70,15 @@ public class UserService {
             result.put("bmiCategory", dto.getBmiCategory() != null ? dto.getBmiCategory() : "Not calculated");
         } else {
             // Fallback to basic user data
-            User user = userRepository.findById(userId)
+            Users users = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            result.put("userId", user.getUserId());
-            result.put("name", user.getName());
-            result.put("email", user.getEmail());
-            result.put("age", user.getAge());
-            result.put("currentWeight", user.getWeight());
-            result.put("height", user.getHeight());
+            result.put("userId", users.getId());
+            result.put("name", users.getName());
+            result.put("email", users.getEmail());
+            result.put("age", users.getAge());
+            result.put("currentWeight", users.getWeight());
+            result.put("height", users.getHeight());
             result.put("lastBMIRecorded", "Not recorded");
             result.put("bmiCategory", "Not calculated");
         }

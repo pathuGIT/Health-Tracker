@@ -49,7 +49,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                         "        WHEN hm.BMI BETWEEN 25 AND 29.9 THEN 'Overweight' " +
                         "        ELSE 'Obese' " +
                         "    END as bmi_category " +
-                        "FROM user u " +
+                        "FROM users u " +
                         "LEFT JOIN health_metric hm ON u.user_id = hm.user_id " +
                         "AND hm.date = (SELECT MAX(date) FROM health_metric WHERE user_id = u.user_id)",
 
@@ -129,7 +129,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                             "    DECLARE user_weight FLOAT; " +
                             "    DECLARE user_height FLOAT; " +
                             "    SELECT weight, height INTO user_weight, user_height " +
-                            "    FROM user WHERE user_id = p_user_id; " +
+                            "    FROM users WHERE user_id = p_user_id; " +
                             "    IF user_weight IS NOT NULL AND user_height IS NOT NULL THEN " +
                             "        SELECT user_weight / (user_height * user_height) as bmi; " +
                             "    ELSE " +
@@ -220,7 +220,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                             "    message VARCHAR(500), " +
                             "    alert_date DATETIME DEFAULT CURRENT_TIMESTAMP, " +
                             "    is_read BOOLEAN DEFAULT FALSE, " +
-                            "    FOREIGN KEY (user_id) REFERENCES user(user_id)" +
+                            "    FOREIGN KEY (user_id) REFERENCES users(user_id)" +
                             ")";
             jdbcTemplate.execute(createAlertsTable);
             System.out.println("User alerts table created/verified");
