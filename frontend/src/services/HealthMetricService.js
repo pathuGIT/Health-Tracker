@@ -1,6 +1,6 @@
 import api from './Api';
 
-// Health Metric Endpoints (/api/health-metrics)
+// Health Metric Endpoints (/api/metric)
 
 /**
  * Records a new health metric (typically weight).
@@ -8,7 +8,7 @@ import api from './Api';
  * @param {object} metricData - { userId, weight }
  */
 export const recordHealthMetric = (metricData) => {
-    return api.post('/health-metrics', metricData);
+    return api.post('/metric', metricData);
 };
 
 /**
@@ -16,7 +16,7 @@ export const recordHealthMetric = (metricData) => {
  * @param {number} userId
  */
 export const getHealthMetricsByUser = (userId) => {
-    return api.get(`/health-metrics/user/${userId}`);
+    return api.get(`/metric/user/${userId}`);
 };
 
 /**
@@ -24,7 +24,7 @@ export const getHealthMetricsByUser = (userId) => {
  * @param {number} userId
  */
 export const getLatestHealthMetric = (userId) => {
-    return api.get(`/health-metrics/user/${userId}/latest`);
+    return api.get(`/metric/user/${userId}/latest`);
 };
 
 /**
@@ -32,5 +32,5 @@ export const getLatestHealthMetric = (userId) => {
  * @param {number} userId
  */
 export const getHealthProgress = (userId) => {
-    return api.get(`/health-metrics/user/${userId}/progress`);
+    return api.get(`/metric/user/${userId}/progress`);
 };

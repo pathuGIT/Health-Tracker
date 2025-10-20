@@ -1,13 +1,13 @@
 import api from './Api';
 
-// Meal Endpoints (/api/meals)
+// Meal Endpoints (/api/meal)
 
 /**
  * Logs a new meal and its calorie count.
  * @param {object} mealData - { userId, mealName, caloriesConsumed }
  */
 export const logMeal = (mealData) => {
-    return api.post('/meals', mealData);
+    return api.post('/meal', mealData);
 };
 
 /**
@@ -15,7 +15,7 @@ export const logMeal = (mealData) => {
  * @param {number} userId
  */
 export const getMealsByUser = (userId) => {
-    return api.get(`/meals/user/${userId}`);
+    return api.get(`/meal/user/${userId}`);
 };
 
 /**
@@ -24,7 +24,7 @@ export const getMealsByUser = (userId) => {
  * @param {string} date - Date in YYYY-MM-DD format.
  */
 export const getMealsByUserAndDate = (userId, date) => {
-    return api.get(`/meals/user/${userId}/date/${date}`);
+    return api.get(`/meal/user/${userId}/date/${date}`);
 };
 
 /**
@@ -33,7 +33,7 @@ export const getMealsByUserAndDate = (userId, date) => {
  * @param {string} date - Date in YYYY-MM-DD format.
  */
 export const getTotalCaloriesConsumed = (userId, date) => {
-    return api.get(`/meals/user/${userId}/date/${date}/calories-consumed`);
+    return api.get(`/meal/user/${userId}/date/${date}/calories-consumed`);
 };
 
 /**
@@ -42,5 +42,5 @@ export const getTotalCaloriesConsumed = (userId, date) => {
  * @param {string} date - Date in YYYY-MM-DD format.
  */
 export const getDailyCalorieIntake = (userId, date) => {
-    return api.get(`/meals/user/${userId}/date/${date}/summary`);
+    return api.get(`/meal/user/${userId}/date/${date}/summary`);
 };

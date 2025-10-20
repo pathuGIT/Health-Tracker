@@ -1,22 +1,23 @@
 import api from './Api';
 
-// Authentication Endpoints (/api/auth)
+// Authentication Endpoints (Now using /api/users for demo simplicity)
 
 /**
  * Registers a new user.
  * @param {object} userData - User details including name, email, contact, password, age, weight, height.
  */
 export const registerUser = (userData) => {
-    return api.post('/auth/register', userData);
+    return api.post('/users/register', userData);
 };
 
 /**
  * Logs in a user.
- * @param {string} login - User's email or contact number.
+ * @param {string} email - User's email (used as login identifier for this demo).
  * @param {string} password - User's password.
  */
-export const loginUser = (login, password) => {
-    return api.post('/auth/login', { login, password })
+export const loginUser = (email, password) => {
+    // Passes email and a mock password in the body. The backend is only using email for the mock check.
+    return api.post('/users/login', { email, password }) 
         .then(res => {
             if (res.data && res.data.token) {
                 localStorage.setItem("token", res.data.token);
