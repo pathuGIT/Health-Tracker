@@ -1,30 +1,46 @@
+// frontend/src/components/Exercises.jsx
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { getExercisesByUser } from "../services/ExerciseService";
+import { useAuth } from "../context/AuthContext"; // 1. FIX: Import useAuth
 
-const DEMO_USER_ID = 1;
+// REMOVED: const DEMO_USER_ID = 1;
 
 const Exercises = () => {
-    console.log('Exercises component mounting'); // Debug mount
+    console.log('Exercises component mounting'); 
     
+    // 2. FIX: Get userId, isAuthenticated, and isAuthLoading from context
+    const { userId, isAuthenticated, isAuthLoading } = useAuth();
+
     const [exercises, setExercises] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchExercises = async () => {
+             // 3. FIX: Wait until Auth process is finished
+             if (isAuthLoading) {
+                setLoading(true); 
+                return;
+            }
+
+            // 4. FIX: Check if authenticated before fetching
+            if (!isAuthenticated || !userId) {
+                setError("Authentication required to view exercises. Please log in.");
+                setLoading(false);
+                setExercises([]);
+                return;
+            }
+
+            // 5. We have a stable, valid userId: fetch data.
             try {
                 setLoading(true);
                 setError(null);
 
-                const response = await getExercisesByUser(DEMO_USER_ID);
-                console.log('Raw API Response:', response); // More detailed debug
-
-                // Simplified data handling
-                const exercisesData = response?.data?.exercises || response?.data || response || [];
+                // 6. FIX: Use the actual userId from context
+                const response = await getExercisesByUser(userId); 
+                const exercisesData = response?.data?.exercises || response?.data?.data || response?.data || [];
                 
-                console.log('Final exercises data:', exercisesData); // Debug final data
-
                 setExercises(Array.isArray(exercisesData) ? exercisesData : []);
 
             } catch (err) {
@@ -38,13 +54,15 @@ const Exercises = () => {
                 } else {
                     setError("Failed to fetch exercises: " + err.message);
                 }
+                setExercises([]);
             } finally {
                 setLoading(false);
             }
         };
 
+        // 7. Depend on all relevant auth states
         fetchExercises();
-    }, []);
+    }, [userId, isAuthenticated, isAuthLoading]); 
 
     if (loading) {
         return (
@@ -84,7 +102,7 @@ const Exercises = () => {
         >
             <div className="flex justify-between items-center">
                 <p className="text-text-muted">
-                    {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'} logged for User ID {DEMO_USER_ID}.
+                    {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'} logged for User ID {userId}. 
                 </p>
                 <button
                     onClick={() => window.location.reload()}
@@ -115,7 +133,7 @@ const Exercises = () => {
                                     <h3 className="font-bold text-xl text-accent-green">
                                         {exercise.exerciseName}
                                     </h3>
-                                    <p className="text-text-muted text-sm mt-1">User ID: {exercise.userId}</p>
+                                    <p className="text-text-muted text-sm mt-1">User ID: {exercise.userId}</p> 
                                 </div>
                                 <div className="w-12 h-12 bg-accent-green rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
                                     🏋️

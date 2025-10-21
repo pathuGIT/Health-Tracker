@@ -2,6 +2,8 @@ package com.health.tracker.service;
 
 import com.health.tracker.entity.HealthMetric;
 import com.health.tracker.repository.HealthMetricRepository;
+import com.health.tracker.repository.UserRepository; // NEW IMPORT
+import com.health.tracker.entity.Users; // NEW IMPORT
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -17,15 +19,31 @@ public class HealthMetricService {
     @Autowired
     private HealthMetricRepository healthMetricRepository;
 
+    @Autowired // FIX: Inject UserRepository
+    private UserRepository userRepository;
+
     public HealthMetric recordHealthMetric(HealthMetric healthMetric) {
+        // FIX: Retrieve user to get actual height and prepare for weight update
+        Users user = userRepository.findById(healthMetric.getUserId())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
         // Calculate BMI if not provided
         if (healthMetric.getBMI() == 0 && healthMetric.getWeight() > 0) {
-            // This would typically get user height from user service
-            // For demo, assuming height is available
-            float bmi = calculateBMI(healthMetric.getWeight(), 1.75f); // Default height
+            // Use the actual user's height (in cm) converted to meters (m) for calculation
+            float heightInMeters = user.getHeight() / 100.0f;
+            
+            float bmi = calculateBMI(healthMetric.getWeight(), heightInMeters); 
             healthMetric.setBMI(bmi);
         }
-        return healthMetricRepository.save(healthMetric);
+        
+        // 1. Save the new metric to the HealthMetric table (history)
+        HealthMetric savedMetric = healthMetricRepository.save(healthMetric); 
+
+        // 2. FIX: Update the user's current weight in the Users table
+        user.setWeight(healthMetric.getWeight());
+        userRepository.save(user);
+
+        return savedMetric;
     }
 
     public List<HealthMetric> getHealthMetricsByUser(int userId) {
@@ -54,7 +72,7 @@ public class HealthMetricService {
         return progress;
     }
 
-    private float calculateBMI(float weight, float height) {
-        return weight / (height * height);
+    private float calculateBMI(float weight, float heightInMeters) {
+        return weight / (heightInMeters * heightInMeters);
     }
 }

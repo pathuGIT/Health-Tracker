@@ -8,6 +8,8 @@ import com.health.tracker.entity.Users;
 import com.health.tracker.repository.AdminRepository;
 import com.health.tracker.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -153,5 +155,21 @@ public class AuthService {
         }
 
         throw new RuntimeException("Error Logout.");
+    }
+
+public UserRegisterResponse adminRegister(Admin admin) {
+        if(userRepo.existsByEmail(admin.getEmail()) || adminRepository.findByEmail(admin.getEmail()) != null){
+            throw new IllegalArgumentException("This Email already exists for a user or admin.");
+        }
+        if(userRepo.existsByContact(admin.getContact()) || adminRepository.findByContact(admin.getContact()) != null){
+            throw new IllegalArgumentException("This Contact already exists for a user or admin.");
+        }
+
+        admin.setPassword(bCryptPasswordEncoder.encode(admin.getPassword()));
+
+        Admin res = adminRepository.save(admin);
+        // Reusing UserRegisterResponse as it has the same fields needed (id, name, email, contact)
+        UserRegisterResponse ar = new UserRegisterResponse(res.getId(), res.getName(), res.getEmail(), res.getContact());
+        return ar;
     }
 }

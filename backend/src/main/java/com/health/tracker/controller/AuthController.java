@@ -1,6 +1,7 @@
 package com.health.tracker.controller;
 
 import com.health.tracker.dto.*;
+import com.health.tracker.entity.Admin;
 import com.health.tracker.entity.Users;
 import com.health.tracker.service.AuthService;
 import jakarta.validation.Valid;
@@ -45,6 +46,36 @@ public class AuthController {
             response.setData(res);
             return ResponseEntity.ok(response);
 
+
+        } catch (IllegalArgumentException ex){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<String>(ex.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<String>("An unexpected error occurred", null));
+        }
+    }
+
+    // NEW ENDPOINT: Admin Registration
+    @PostMapping("/admin/register")
+    @PreAuthorize("hasAuthority('ADMIN')") // Only existing admins can create new admins
+    public ResponseEntity<?> adminRegister(@Valid @RequestBody Admin admin, BindingResult result){
+        if (result.hasErrors()) {
+            List<String> errors = result.getAllErrors()
+                    .stream()
+                    .map(ObjectError::getDefaultMessage)
+                    .toList();
+            return ResponseEntity.badRequest().body(new ApiResponse<List<String>>("Empty fields..", errors));
+        }
+
+        try {
+            // Role and active status set in service, but ensure role is set to ADMIN in entity
+            admin.setRole(Roles.ADMIN); // Assuming Admin entity uses Roles enum
+            admin.setActive(true);
+
+            UserRegisterResponse res = authService.adminRegister(admin); // New service method
+            ApiResponse<UserRegisterResponse> response = new ApiResponse<>();
+            response.setMessage("Admin registered successfully!");
+            response.setData(res);
+            return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException ex){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<String>(ex.getMessage(), null));

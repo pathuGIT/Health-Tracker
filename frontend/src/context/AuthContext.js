@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
     // Initial state derived from localStorage token
     const [authToken, setAuthToken] = useState(localStorage.getItem('token'));
     const [user, setUser] = useState(null); // Stores { id, name, email, ... }
+    const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
     const [isAuthLoading, setIsAuthLoading] = useState(true);
 
     // Helper to get logout function, ensuring it's available in dependencies
@@ -22,8 +23,10 @@ export const AuthProvider = ({ children }) => {
             .finally(() => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('userId');
+                localStorage.removeItem('userRole');
                 setAuthToken(null);
                 setUser(null);
+                setUserRole(null);
                 setIsAuthLoading(false);
             });
     }, []);
@@ -52,7 +55,9 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (authToken) {
             const storedUserId = localStorage.getItem('userId');
-            if (storedUserId) {
+            const storedUserRole = localStorage.getItem('userRole');
+            if (storedUserId && storedUserRole) {
+                setUserRole(storedUserRole);
                 fetchUserProfile(parseInt(storedUserId));
             } else {
                 setIsAuthLoading(false); 
@@ -60,6 +65,7 @@ export const AuthProvider = ({ children }) => {
             }
         } else {
             setUser(null);
+            setUserRole(null);
             setIsAuthLoading(false);
         }
     }, [authToken, fetchUserProfile, handleLogout]);
@@ -77,7 +83,9 @@ export const AuthProvider = ({ children }) => {
                 localStorage.setItem('token', token);
                 localStorage.setItem('userId', authenticatedUserId.toString());
                 setAuthToken(token);
-                
+                const mockRole = 'USER'; // Default to USER
+                localStorage.setItem('userRole', mockRole);
+                setUserRole(mockRole);
                 await fetchUserProfile(authenticatedUserId); 
                 return true;
             } else {
@@ -95,6 +103,8 @@ export const AuthProvider = ({ children }) => {
         userId: user ? user.id : null,
         isAuthenticated: !!authToken,
         isAuthLoading,
+        userRole, // NEW: Expose user role
+        isAdmin: userRole === 'ADMIN',
         handleLogin,
         handleLogout,
         fetchUserProfile

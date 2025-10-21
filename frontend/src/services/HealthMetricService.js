@@ -8,7 +8,8 @@ import api from './Api';
  * @param {object} metricData - { userId, weight }
  */
 export const recordHealthMetric = (metricData) => {
-    return api.post('/metric', metricData);
+    console.log("Recording health metric for userId:", metricData.userId, "with weight:", metricData.weight);
+    return api.post('/health-metrics', metricData);
 };
 
 /**

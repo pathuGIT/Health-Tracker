@@ -3,33 +3,32 @@ import React from "react";
 import { motion } from "framer-motion";
 import BMIChart from "./charts/BMIChart";
 import CaloriesChart from "./charts/CaloriesChart";
-import { useAuth } from "../context/AuthContext"; // NEW IMPORT: Use AuthContext
+import { useAuth } from "../context/AuthContext"; 
 
 // Helper function to calculate total calories (for simplicity)
 const calculateTotalCalories = (items, key) => items.reduce((acc, item) => acc + (item[key] || 0), 0);
 
 const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
-    // FIX: Get the active user object from AuthContext
-    const { user } = useAuth();
+    // FIX: Get isAdmin flag from context
+    const { user, isAdmin } = useAuth();
     
     // Extract user details from context or default to null
     const activeUserName = user?.name;
     const activeUserWeight = user?.weight;
     const activeUserHeight = user?.height;
 
-    // --- Aggregated Stats ---
+    // --- Aggregated Stats (User Only) ---
     const totalExercises = exercises.length;
     const totalMeals = meals.length;
     const totalCaloriesBurned = calculateTotalCalories(exercises, 'caloriesBurned');
     const totalCaloriesConsumed = calculateTotalCalories(meals, 'caloriesConsumed');
     const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
 
-    // FIX: Calculate BMI using activeUserHeight and activeUserWeight from context
+    // Calculate BMI
     const demoBMI = (activeUserWeight && activeUserHeight > 0) 
         ? (activeUserWeight / ((activeUserHeight / 100) ** 2)).toFixed(1) 
         : 'N/A';
         
-    // FIX: Use activeUserWeight from context
     const demoWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
 
     const StatCard = ({ title, value, icon, color }) => (
@@ -67,7 +66,50 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             </motion.div>
         );
     }
+    
+    // --- NEW: ADMIN DASHBOARD VIEW ---
+    if (isAdmin) {
+        return (
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-8"
+            >
+                <h1 className="text-3xl font-bold text-accent-green">Admin Dashboard 👑</h1>
+                <p className="text-text-muted">Welcome back, {activeUserName || 'Admin'}. You have oversight over **{users.length}** registered users.</p>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <StatCard title="Total Registered Users" value={users.length} icon="👥" color="#4F46E5" />
+                    <StatCard title="Actions Available" value="Manage Users" icon="🛠️" color="#F59E0B" />
+                    <StatCard title="Add New User" value="Register User" icon="➕" color="#10B981" />
+                </div>
+
+                <motion.div 
+                    className="card p-6"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <h2 className="text-xl font-semibold text-text-dark mb-4">Quick Links</h2>
+                    <ul className="space-y-2">
+                        <li>
+                            <button onClick={() => onLoginClick("users")} className="text-primary-blue hover:underline">
+                                View All User Profiles
+                            </button>
+                        </li>
+                        <li>
+                             <button onClick={() => onLoginClick("addUser")} className="text-primary-blue hover:underline">
+                                Manually Register a New User
+                            </button>
+                        </li>
+                    </ul>
+                </motion.div>
+            </motion.div>
+        );
+    }
+    
+    // --- EXISTING: USER DASHBOARD VIEW ---
     return (
         <motion.div 
             initial={{ opacity: 0 }}
@@ -75,7 +117,6 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             transition={{ duration: 0.3 }}
             className="space-y-8"
         >
-            {/* FIX: Use activeUserName from context */}
             <h1 className="text-xl font-semibold text-text-dark">Hi {activeUserName || 'User'}! Here is your progress snapshot.</h1>
             
             {/* Stats Grid */}
