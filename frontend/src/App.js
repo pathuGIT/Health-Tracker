@@ -18,20 +18,20 @@ import Register from "./pages/Register";
 import Profile from "./pages/Profile"; // NEW IMPORT
 import Sidebar from "./components/Sidebar"; // NEW IMPORT
 import Modal from "./components/Modal"; // NEW IMPORT
+import { useAuth } from "./context/AuthContext"; // NEW IMPORT
+
 
 function App() {
+    // FIX: Get isAuthLoading from context
+    const { userId, authToken, handleLogout, isAuthLoading } = useAuth();
+    
     const [users, setUsers] = useState([]);
     const [exercises, setExercises] = useState([]);
     const [meals, setMeals] = useState([]);
     const [activeTab, setActiveTab] = useState("dashboard"); 
-    // FIX: Get initial token directly from localStorage for immediate check
-    const [authToken, setAuthToken] = useState(localStorage.getItem("token"));
+    
     const [modalContent, setModalContent] = useState(null); 
     
-    // NOTE: This hardcoded DEMO_USER_ID is a security vulnerability in a real app 
-    // and should be replaced by extracting the authenticated user's ID from the JWT payload.
-    const DEMO_USER_ID = 1; 
-
     // --- Data Fetching Functions (Using the Services) ---
     const fetchUsers = useCallback(() => {
         getAllUsers()
@@ -40,41 +40,50 @@ function App() {
     }, []);
 
     const fetchExercises = useCallback(() => {
-        // FIX: Only fetch if authenticated (authToken exists)
-        if (!authToken) return;
-        getExercisesByUser(DEMO_USER_ID)
+        // Only fetch if userId is present (guaranteed to be stable inside fetchData block)
+        if (!userId) { 
+            setExercises([]);
+            return;
+        }
+        getExercisesByUser(userId) 
             .then(res => {
-                // Assuming response format might be nested based on backend ApiResponse
                 setExercises(res.data.data?.exercises || res.data.data || res.data.exercises || res.data || []);
             })
             .catch(err => console.error("Error fetching exercises:", err));
-    }, [authToken]);
+    }, [userId]); 
 
     const fetchMeals = useCallback(() => {
-        // FIX: Only fetch if authenticated (authToken exists)
-        if (!authToken) return;
-        getMealsByUser(DEMO_USER_ID)
+        // Only fetch if userId is present (guaranteed to be stable inside fetchData block)
+        if (!userId) { 
+            setMeals([]);
+            return;
+        }
+        getMealsByUser(userId) 
             .then(res => {
-                 // Assuming response format might be nested based on backend ApiResponse
                 setMeals(res.data.data?.meals || res.data.data || res.data.meals || res.data || []);
             })
             .catch(err => console.error("Error fetching meals:", err));
-    }, [authToken]);
+    }, [userId]); 
 
     const fetchData = useCallback(() => {
-        // Fetch all users (used for the Users page/demo, often public or admin-only)
         fetchUsers(); 
         
-        // Only fetch authenticated user-specific data if the token is present
-        if (authToken) {
+        // FIX: Block fetching user-specific data while authentication/user profile is loading
+        if (isAuthLoading) {
+            setExercises([]);
+            setMeals([]);
+            return;
+        }
+
+        // If loading is done, check userId to trigger fetches for authenticated user
+        if (userId) { 
             fetchExercises();
             fetchMeals();
         } else {
-            // Clear user-specific data when logged out
             setExercises([]);
             setMeals([]);
         }
-    }, [authToken, fetchUsers, fetchExercises, fetchMeals]);
+    }, [userId, isAuthLoading, fetchUsers, fetchExercises, fetchMeals]); // ADD isAuthLoading dependency
 
     useEffect(() => {
         // Set initial tab based on auth state
@@ -88,24 +97,13 @@ function App() {
     }, [authToken, fetchData, activeTab]);
 
     // --- Auth Handlers ---
-    const handleLoginSuccess = (token) => {
-        // NOTE: The token is already set in localStorage inside AuthService.js upon success.
-        setAuthToken(token);
-        // Important: Rerun fetchData immediately after login to populate dashboard
-        fetchData(); 
+    const handleLoginSuccess = () => { 
+        // Logic handled by AuthContext, now just close modal and set tab
         setActiveTab("dashboard");
         closeModal(); 
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        setAuthToken(null);
-        setExercises([]); 
-        setMeals([]);
-        // Important: Rerun fetchData immediately after logout to clear user data
-        fetchData(); 
-        setActiveTab("dashboard"); 
-    };
+    // handleLogout is provided by useAuth context
 
     // --- Modal Handlers ---
     const openModal = (content) => {
@@ -123,13 +121,19 @@ function App() {
                 openModal(<AddUser onUserAdded={() => { fetchUsers(); closeModal(); }} />);
                 break;
             case "addExercise":
+                if (!userId) return handleTabChange("login"); 
                 openModal(<AddExercise onExerciseAdded={() => { fetchExercises(); closeModal(); }} />);
                 break;
             case "addMeal":
+                if (!userId) return handleTabChange("login");
                 openModal(<AddMeal onMealAdded={() => { fetchMeals(); closeModal(); }} />);
                 break;
             case "updateBMI":
-                openModal(<UpdateBMI closeModal={closeModal} />);
+                if (!userId) return handleTabChange("login");
+                openModal(<UpdateBMI closeModal={() => { 
+                    fetchData(); // Re-fetch user data to update dashboard/profile
+                    closeModal(); 
+                }} />); 
                 break;
             case "login":
                 // Nested modals for seamless switching between login/register

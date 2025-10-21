@@ -1,3 +1,4 @@
+// frontend/src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { loginUser, logoutUser } from '../services/AuthService';
 import { getUserProfile } from '../services/UserService';
@@ -8,88 +9,90 @@ const AuthContext = createContext();
 // Custom hook to use the AuthContext
 export const useAuth = () => useContext(AuthContext);
 
-// Utility function to get DEMO_USER_ID if token exists
-const getDemoUserId = () => (localStorage.getItem('token') ? 1 : null);
-
 export const AuthProvider = ({ children }) => {
     // Initial state derived from localStorage token
     const [authToken, setAuthToken] = useState(localStorage.getItem('token'));
     const [user, setUser] = useState(null); // Stores { id, name, email, ... }
     const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+    // Helper to get logout function, ensuring it's available in dependencies
+    const handleLogout = useCallback(() => {
+        logoutUser()
+            .catch(err => console.error("Logout API failed (token likely invalid already):", err))
+            .finally(() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('userId');
+                setAuthToken(null);
+                setUser(null);
+                setIsAuthLoading(false);
+            });
+    }, []);
+
     const fetchUserProfile = useCallback(async (userId) => {
         try {
             const res = await getUserProfile(userId);
             console.log("Fetched user profile:", userId);
-            // Assuming getUserProfile returns ApiResponse<Map<String, Object>>
             const profileData = res.data.data || res.data;
             setUser({
                 id: profileData.userId,
                 name: profileData.name,
                 email: profileData.email,
-                // Include other relevant profile data
+                age: profileData.age,
+                height: profileData.height,
+                weight: profileData.currentWeight
             });
         } catch (error) {
             console.error("Failed to fetch user profile after login:", error);
-            // If profile fetch fails, treat it as a critical error (e.g., token invalid, user missing)
             handleLogout();
         } finally {
             setIsAuthLoading(false);
         }
-    }, []);
+    }, [handleLogout]);
 
     useEffect(() => {
         if (authToken) {
-            // After page load/refresh, load user data if a token is present
-            const userId = getDemoUserId();
-            if (userId) {
-                fetchUserProfile(userId);
+            const storedUserId = localStorage.getItem('userId');
+            if (storedUserId) {
+                fetchUserProfile(parseInt(storedUserId));
             } else {
-                 // Should not happen if token exists, but ensures loading state is resolved
                 setIsAuthLoading(false); 
+                handleLogout();
             }
         } else {
-            // No token, no user, done loading auth state
             setUser(null);
             setIsAuthLoading(false);
         }
-    }, [authToken, fetchUserProfile]);
+    }, [authToken, fetchUserProfile, handleLogout]);
 
 
     const handleLogin = async (email, password) => {
         setIsAuthLoading(true);
         try {
             const res = await loginUser(email, password);
-            const token = res.data?.data?.accessToken;
+            const tokenResponse = res.data?.data; 
+            const token = tokenResponse?.accessToken;
+            const authenticatedUserId = tokenResponse?.userId; 
 
-            if (token) {
+            if (token && authenticatedUserId) {
                 localStorage.setItem('token', token);
+                localStorage.setItem('userId', authenticatedUserId.toString());
                 setAuthToken(token);
-                // Immediately trigger profile fetch using the known DEMO ID
-                await fetchUserProfile(getDemoUserId()); 
+                
+                await fetchUserProfile(authenticatedUserId); 
                 return true;
+            } else {
+                throw new Error("Authentication succeeded but missing user ID or token in response.");
             }
         } catch (error) {
             setIsAuthLoading(false);
-            throw error; // Let the Login component handle the error display
+            throw error; 
         }
-    };
-
-    const handleLogout = () => {
-        logoutUser()
-            .catch(err => console.error("Logout API failed (token likely invalid already):", err))
-            .finally(() => {
-                localStorage.removeItem('token');
-                setAuthToken(null);
-                setUser(null);
-                setIsAuthLoading(false);
-            });
     };
 
     const contextValue = {
         authToken,
         user,
-        userId: user ? user.id : null, // Easier access to ID
+        userId: user ? user.id : null,
         isAuthenticated: !!authToken,
         isAuthLoading,
         handleLogin,

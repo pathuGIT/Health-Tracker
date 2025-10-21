@@ -16,6 +16,7 @@ export const logExercise = (exerciseData) => {
  * @param {number} userId
  */
 export const getExercisesByUser = (userId) => {
+    console.log("Fetching exercises for userId:", userId);
     // FIX: Changed API path to use plural base path /exercises
     return api.get(`/exercises/user/${userId}`);
 };

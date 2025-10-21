@@ -3,9 +3,12 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import api from '../services/Api';
 import { logExercise } from "../services/ExerciseService"; // Import the log function
+import { useAuth } from "../context/AuthContext"; // NEW IMPORT
 
 const AddExercise = ({ onExerciseAdded }) => {
-    const [userId, setUserId] = useState("1"); 
+    // FIX: Get userId and isAuthenticated from context
+    const { userId, isAuthenticated } = useAuth();
+    // REMOVED local userId state (setUserId), only use it for display/logic now
     const [name, setName] = useState("");
     const [duration, setDuration] = useState("");
     const [calories, setCalories] = useState("");
@@ -14,13 +17,18 @@ const AddExercise = ({ onExerciseAdded }) => {
 
 
     const handleSubmit = () => {
+        // FIX: Pre-check authentication status
+        if (!isAuthenticated || !userId) {
+            setError("Must be logged in to log an exercise.");
+            return;
+        }
+
         setError(null);
         setLoading(true);
 
-        // FIX: Use the imported logExercise service function 
-        // (which correctly uses the plural '/api/exercises' path)
+        // FIX: Use the userId from context
         logExercise({
-            userId: parseInt(userId),
+            userId: userId, 
             exerciseName: name,
             durationMinutes: parseInt(duration),
             caloriesBurned: parseFloat(calories)
@@ -64,9 +72,8 @@ const AddExercise = ({ onExerciseAdded }) => {
                     <input
                         type="number"
                         className="input-field bg-gray-50 cursor-not-allowed"
-                        placeholder="Enter user ID"
-                        value={userId}
-                        onChange={e => setUserId(e.target.value)}
+                        placeholder="Logged in User ID"
+                        value={userId || ''} // FIX: Display context userId
                         disabled
                     />
                 </div>
@@ -104,7 +111,7 @@ const AddExercise = ({ onExerciseAdded }) => {
             <button
                 className="w-full btn-accent"
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || !isAuthenticated || !userId} // FIX: Disable if not logged in
             >
                  {loading ? (
                     <span className="flex items-center justify-center">

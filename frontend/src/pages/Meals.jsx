@@ -1,21 +1,38 @@
+// frontend/src/pages/Meals.jsx
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { getMealsByUser } from "../services/MealService";
-
-const DEMO_USER_ID = 1;
+import { useAuth } from "../context/AuthContext"; 
 
 const Meals = () => {
+    // FIX: Get userId, isAuthenticated, and isAuthLoading from context
+    const { userId, isAuthenticated, isAuthLoading } = useAuth();
     const [meals, setMeals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchMeals = async () => {
+            // 1. FIX: Wait until Auth process is finished (to avoid running with transient/null userId)
+             if (isAuthLoading) {
+                setLoading(true); 
+                return;
+            }
+
+            // 2. If Auth is finished but we don't have a userId, show error/unauthenticated state
+            if (!isAuthenticated || !userId) {
+                setError("Authentication required to view meals.");
+                setLoading(false);
+                setMeals([]);
+                return;
+            }
+
             try {
                 setLoading(true);
                 setError(null);
 
-                const response = await getMealsByUser(DEMO_USER_ID);
+                // FIX: Use the actual userId from context
+                const response = await getMealsByUser(userId);
 
                 let mealsData = response.data;
 
@@ -40,13 +57,14 @@ const Meals = () => {
                 } else {
                     setError("Failed to fetch meals: " + err.message);
                 }
+                setMeals([]);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchMeals();
-    }, []);
+    }, [userId, isAuthenticated, isAuthLoading]); // Depend on all relevant auth states
 
     if (loading) {
         return (
@@ -86,7 +104,7 @@ const Meals = () => {
         >
             <div className="flex justify-between items-center">
                 <p className="text-text-muted">
-                    {meals.length} {meals.length === 1 ? 'meal' : 'meals'} logged for User ID {DEMO_USER_ID}
+                    {meals.length} {meals.length === 1 ? 'meal' : 'meals'} logged for User ID {userId}
                 </p>
                 <button
                     onClick={() => window.location.reload()}

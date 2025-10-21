@@ -15,6 +15,7 @@ export const logMeal = (mealData) => {
  * @param {number} userId
  */
 export const getMealsByUser = (userId) => {
+    console.log("Fetching meals for userId:", userId);
     // FIX: Changed API path from /meal/users/{userId} to /meals/user/{userId}
     return api.get(`/meals/user/${userId}`);
 };

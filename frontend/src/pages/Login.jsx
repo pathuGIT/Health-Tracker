@@ -1,9 +1,12 @@
 // src/pages/Login.jsx
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { loginUser } from "../services/AuthService";
+import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 const Login = ({ onLoginSuccess, switchToRegister }) => {
+    // FIX: Get handleLogin from context
+    const { handleLogin } = useAuth();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState(null);
@@ -15,24 +18,21 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
         setLoading(true);
 
         try {
-            // Pass the actual password collected from the form.
-            const res = await loginUser(email, password); 
-            alert("Login Successful! Token stored (secure JWT).");
-            
-            // Extract the actual access token from the nested API response structure: res.data.data.accessToken
-            const accessToken = res.data?.data?.accessToken;
+            // FIX: Use context handleLogin, which manages token storage, state update, and profile fetch
+            const success = await handleLogin(email, password); 
 
-            if (accessToken) {
-                // Call the success handler in App.js to update the application state
-                onLoginSuccess(accessToken); 
+            if (success) {
+                alert("Login Successful! Redirecting to dashboard.");
+                // Signal App.js for UI transition (modal close and tab set)
+                onLoginSuccess(); 
             } else {
-                 // Should not happen if backend is correctly set up, but a safe guard
-                 throw new Error("Authentication succeeded but no token was received.");
+                 // handleLogin should throw on failure, but for explicit clarity
+                 throw new Error("Authentication failed unexpectedly.");
             }
 
         } catch (err) {
             console.error(err);
-            // FIX: Use the specific message from the ApiResponse nested fields (data or message).
+            // FIX: Error handling to extract message from API response
             const apiMessage = err.response?.data?.message || err.response?.data?.data;
             const fallbackMessage = "Login failed. Check your credentials and server status.";
             

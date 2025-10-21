@@ -2,9 +2,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import api from '../services/Api';
+import { useAuth } from "../context/AuthContext"; // NEW IMPORT
 
 const UpdateBMI = ({ closeModal }) => {
-    const [userId, setUserId] = useState("1"); 
+    // FIX: Get userId, isAuthenticated, and fetchUserProfile from context
+    const { userId, isAuthenticated, fetchUserProfile } = useAuth(); 
+
+    // REMOVED local userId state (setUserId)
     const [weight, setWeight] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -12,14 +16,24 @@ const UpdateBMI = ({ closeModal }) => {
 
 
     const handleSubmit = () => {
+        // FIX: Pre-check authentication status
+        if (!isAuthenticated || !userId) {
+            setError("Must be logged in to update metrics.");
+            return;
+        }
+
         setError(null);
         setSuccess(null);
         setLoading(true);
         
-        // Calls the /api/bmi endpoint to record a HealthMetric and calculate BMI.
+        // FIX: Use the context userId
         api.post(`/bmi?userId=${userId}&weight=${weight}`)
             .then(res => {
                 setSuccess(res.data);
+                
+                // IMPORTANT: Trigger re-fetch of user profile/data so Dashboard/Profile updates
+                fetchUserProfile(userId); 
+
                 // Close the modal after a brief delay
                 setTimeout(closeModal, 1500); 
             })
@@ -61,9 +75,8 @@ const UpdateBMI = ({ closeModal }) => {
                     <input
                         type="number"
                         className="input-field bg-gray-50 cursor-not-allowed"
-                        placeholder="Enter user ID"
-                        value={userId}
-                        onChange={e => setUserId(e.target.value)}
+                        placeholder="Logged in User ID"
+                        value={userId || ''} // FIX: Display context userId
                         disabled
                     />
                 </div>
@@ -82,7 +95,7 @@ const UpdateBMI = ({ closeModal }) => {
             <button
                 className="w-full btn-primary"
                 onClick={handleSubmit}
-                disabled={loading || !!success}
+                disabled={loading || !!success || !isAuthenticated || !userId} // FIX: Disable if not logged in
             >
                 {loading ? (
                     <span className="flex items-center justify-center">

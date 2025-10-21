@@ -3,12 +3,19 @@ import React from "react";
 import { motion } from "framer-motion";
 import BMIChart from "./charts/BMIChart";
 import CaloriesChart from "./charts/CaloriesChart";
+import { useAuth } from "../context/AuthContext"; // NEW IMPORT: Use AuthContext
 
 // Helper function to calculate total calories (for simplicity)
 const calculateTotalCalories = (items, key) => items.reduce((acc, item) => acc + (item[key] || 0), 0);
 
 const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
-    const activeUser = users.length > 0 ? users[0] : null;
+    // FIX: Get the active user object from AuthContext
+    const { user } = useAuth();
+    
+    // Extract user details from context or default to null
+    const activeUserName = user?.name;
+    const activeUserWeight = user?.weight;
+    const activeUserHeight = user?.height;
 
     // --- Aggregated Stats ---
     const totalExercises = exercises.length;
@@ -17,9 +24,13 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
     const totalCaloriesConsumed = calculateTotalCalories(meals, 'caloriesConsumed');
     const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
 
-    // Default BMI data
-    const demoBMI = activeUser && activeUser.height > 0 ? (activeUser.weight / ((activeUser.height / 100) ** 2)).toFixed(1) : 'N/A';
-    const demoWeight = activeUser ? `${activeUser.weight} kg` : 'N/A';
+    // FIX: Calculate BMI using activeUserHeight and activeUserWeight from context
+    const demoBMI = (activeUserWeight && activeUserHeight > 0) 
+        ? (activeUserWeight / ((activeUserHeight / 100) ** 2)).toFixed(1) 
+        : 'N/A';
+        
+    // FIX: Use activeUserWeight from context
+    const demoWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
 
     const StatCard = ({ title, value, icon, color }) => (
         <motion.div
@@ -64,7 +75,8 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             transition={{ duration: 0.3 }}
             className="space-y-8"
         >
-            <h1 className="text-xl font-semibold text-text-dark">Hi {activeUser?.name || 'User'}! Here is your progress snapshot.</h1>
+            {/* FIX: Use activeUserName from context */}
+            <h1 className="text-xl font-semibold text-text-dark">Hi {activeUserName || 'User'}! Here is your progress snapshot.</h1>
             
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
