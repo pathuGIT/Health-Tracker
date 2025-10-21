@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import api from '../services/Api';
+import { logMeal } from "../services/MealService"; // Import the logMeal function
 
 const AddMeal = ({ onMealAdded }) => {
     const [userId, setUserId] = useState("1"); 
@@ -14,7 +15,8 @@ const AddMeal = ({ onMealAdded }) => {
         setError(null);
         setLoading(true);
 
-        api.post("/meal", {
+        // FIX: Use the imported logMeal service function (which points to /api/meals)
+        logMeal({
             userId: parseInt(userId),
             mealName: name,
             caloriesConsumed: parseFloat(calories)
@@ -28,7 +30,9 @@ const AddMeal = ({ onMealAdded }) => {
             })
             .catch(err => {
                 console.error(err);
-                setError(err.response?.data || "Error logging meal. Check if User ID exists and server is running.");
+                // FIX: Update error message extraction to be more robust
+                const errorMessage = err.response?.data?.message || err.message || "Error logging meal. Check if User ID exists and server is running.";
+                setError(errorMessage);
             })
             .finally(() => {
                 setLoading(false);

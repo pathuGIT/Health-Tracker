@@ -40,9 +40,8 @@ public class AuthService {
         if(userRepo.existsByEmail(users.getEmail())){
             throw new IllegalArgumentException("This Email already exists.");
         }
-        // Assuming contact validation should also be checked (based on the original code logic)
         if(userRepo.existsByContact(users.getContact())){
-            throw new IllegalArgumentException("This Contact already exists."); // Corrected error message to be specific
+            throw new IllegalArgumentException("This Contact already exists.");
         }
 
         users.setPassword(bCryptPasswordEncoder.encode(users.getPassword()));
@@ -53,36 +52,62 @@ public class AuthService {
     }
 
     public TokenResponse verifyUser(LoginRequest loginRequest) {
-        // NOTE: authenticationManager.authenticate throws an AuthenticationException (e.g., BadCredentialsException)
-        // on failure, so no explicit check for isAuthenticated is required here.
+        // Authenticate the user. Throws AuthenticationException on failure.
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getLogin(), loginRequest.getPassword())
         );
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        // Spring Security roles are prefixed with "ROLE_", so we remove it here.
+        String login = userDetails.getUsername(); // This is the email/contact
         String role = userDetails.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
 
-        String activeToken = jwtService.generateActiveToken(userDetails.getUsername(), role);
-        String refreshToken = jwtService.generateRefreshToken(userDetails.getUsername(), role);
+        // Determine the actual User ID to return to the frontend
+        Integer authenticatedUserId = null;
         
-        if(refreshToken != null){
-            if(role.equals("USER")) {
-                Users users = userRepo.findByEmail(userDetails.getUsername());
-                if (users != null) {
-                    users.setRefresh_token(refreshToken);
-                    userRepo.save(users);
-                }
-            } else if(role.equals("ADMIN")){
-                Admin admin = adminRepository.findByEmail(userDetails.getUsername());
-                if (admin != null) {
-                    admin.setRefresh_token(refreshToken);
-                    adminRepository.save(admin);
-                }
+        // Find the user entity to get its ID
+        if(role.equals("USER")) {
+            Users user = userRepo.findByEmail(login);
+            if (user == null) {
+                user = userRepo.findByContact(login);
+            }
+            if (user != null) {
+                authenticatedUserId = user.getId();
+            }
+        } else if(role.equals("ADMIN")){
+            Admin admin = adminRepository.findByEmail(login);
+            if (admin == null) {
+                admin = adminRepository.findByContact(login);
+            }
+            if (admin != null) {
+                authenticatedUserId = admin.getId();
             }
         }
 
-        return new TokenResponse(activeToken, refreshToken);
+
+        String activeToken = jwtService.generateActiveToken(login, role);
+        String refreshToken = jwtService.generateRefreshToken(login, role);
+
+        // Update refresh token in DB
+        if(refreshToken != null){
+            if(role.equals("USER")) {
+                Users user = userRepo.findByEmail(login);
+                if (user == null) {
+                    user = userRepo.findByContact(login);
+                }
+                user.setRefresh_token(refreshToken);
+                userRepo.save(user);
+            } else if(role.equals("ADMIN")){
+                Admin admin = adminRepository.findByEmail(login);
+                if (admin == null) {
+                    admin = adminRepository.findByContact(login);
+                }
+                admin.setRefresh_token(refreshToken);
+                adminRepository.save(admin);
+            }
+        }
+
+        // Return the authenticatedUserId in the TokenResponse
+        return new TokenResponse(activeToken, refreshToken, authenticatedUserId);
     }
 
     public Map<String, String> getRefreshToken(String refreshToken) {
@@ -105,6 +130,9 @@ public class AuthService {
 
         if(role.equals("USER")){
             Users user = userRepo.findByEmail(username);
+            if (user == null) {
+                user = userRepo.findByContact(username);
+            }
 
             if (user != null) {
                 user.setRefresh_token(null);
@@ -113,6 +141,9 @@ public class AuthService {
             }
         }else{
             Admin admin = adminRepository.findByEmail(username);
+            if (admin == null) {
+                admin = adminRepository.findByContact(username);
+            }
 
             if (admin != null) {
                 admin.setRefresh_token(null);

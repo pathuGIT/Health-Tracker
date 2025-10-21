@@ -7,6 +7,12 @@ const Register = ({ switchToLogin }) => {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState(""); 
+    // ADDED STATE FOR NEW FIELDS
+    const [contact, setContact] = useState("");
+    const [age, setAge] = useState("");
+    const [weight, setWeight] = useState("");
+    const [height, setHeight] = useState("");
+
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -18,17 +24,15 @@ const Register = ({ switchToLogin }) => {
         setLoading(true);
 
         try {
-            // FIX: Pass the required 'password' and a mock 'contact' value 
-            // to satisfy the backend's User entity validation constraints.
-            // Also included age, weight, height for user entity completeness.
+            // UPDATED: Sending all collected fields instead of mock values
             await registerUser({ 
                 name, 
                 email, 
-                password, // Pass the collected password
-                contact: "0770000000", // Mock value as field is missing in UI
-                age: 25, 
-                weight: 70.0,
-                height: 175.0 
+                password,
+                contact,
+                age: parseInt(age),
+                weight: parseFloat(weight),
+                height: parseFloat(height) 
             }); 
             
             setSuccess("Registration successful! Please log in.");
@@ -36,6 +40,10 @@ const Register = ({ switchToLogin }) => {
             setName("");
             setEmail("");
             setPassword("");
+            setContact("");
+            setAge("");
+            setWeight("");
+            setHeight("");
 
             // Automatically switch to login after a brief success message
             setTimeout(switchToLogin, 1500);
@@ -46,9 +54,14 @@ const Register = ({ switchToLogin }) => {
 
             if (err.response && err.response.data) {
                 const errorData = err.response.data;
-                // FIX: Check for nested error message structure from ApiResponse
+                // Check for nested error message structure from ApiResponse
                 if (errorData.message) {
-                    errorMessage = Array.isArray(errorData.data) ? errorData.data.join(', ') : errorData.message;
+                    // Check if it's a list of errors
+                    if (Array.isArray(errorData.data)) {
+                        errorMessage = errorData.data.join(', ');
+                    } else {
+                        errorMessage = errorData.message;
+                    }
                 } else if (typeof errorData === 'object' && errorData !== null) {
                     errorMessage = errorData.error || errorMessage;
                 } else if (typeof errorData === 'string') {
@@ -69,41 +82,106 @@ const Register = ({ switchToLogin }) => {
             <p className="text-text-muted mb-6 text-center">
                 Fill in your details to create an account and start your fitness journey.
             </p>
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                    <label className="block text-sm font-medium text-text-dark mb-1">Name</label>
-                    <input
-                        type="text"
-                        className="input-field"
-                        placeholder="Enter your name"
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-text-dark mb-1">Email</label>
-                    <input
-                        type="email"
-                        className="input-field"
-                        placeholder="Enter email address"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-text-dark mb-1">Password</label>
-                    <input
-                        type="password"
-                        className="input-field"
-                        placeholder="Enter password"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        required
-                    />
+            <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* Personal Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-text-dark mb-1">Name</label>
+                        <input
+                            type="text"
+                            className="input-field"
+                            placeholder="Enter your name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            required
+                        />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-text-dark mb-1">Email</label>
+                        <input
+                            type="email"
+                            className="input-field"
+                            placeholder="Enter email address"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-text-dark mb-1">Password</label>
+                        <input
+                            type="password"
+                            className="input-field"
+                            placeholder="Enter password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-text-dark mb-1">Contact</label>
+                        <input
+                            type="tel"
+                            className="input-field"
+                            placeholder="Enter contact number"
+                            value={contact}
+                            onChange={e => setContact(e.target.value)}
+                            required
+                        />
+                    </div>
                 </div>
                 
+                <hr className="my-4 border-gray-100" />
+                
+                {/* Health Metrics */}
+                <h3 className="text-lg font-semibold text-text-dark">Initial Health Data</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-text-dark mb-1">Age</label>
+                        <input
+                            type="number"
+                            className="input-field"
+                            placeholder="Age"
+                            value={age}
+                            onChange={e => setAge(e.target.value)}
+                            required
+                            min="1"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-dark mb-1">Weight (kg)</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            className="input-field"
+                            placeholder="Weight in kg"
+                            value={weight}
+                            onChange={e => setWeight(e.target.value)}
+                            required
+                            min="1"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-dark mb-1">Height (cm)</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            className="input-field"
+                            placeholder="Height in cm"
+                            value={height}
+                            onChange={e => setHeight(e.target.value)}
+                            required
+                            min="1"
+                        />
+                    </div>
+                </div>
+
+                {/* Error/Success Messages */}
                 {error && (
                     <motion.div 
                         className="text-accent-red bg-red-100 p-3 rounded-xl text-sm border border-red-200"
@@ -126,7 +204,7 @@ const Register = ({ switchToLogin }) => {
 
                 <button
                     type="submit"
-                    className="w-full btn-accent"
+                    className="w-full btn-accent mt-6"
                     disabled={loading || !!success}
                 >
                     {loading ? (

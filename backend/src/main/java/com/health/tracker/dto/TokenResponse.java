@@ -4,10 +4,16 @@ public class TokenResponse {
     private String accessToken;
     private String refreshToken;
     private String tokenType = "Bearer";
+    private Integer userId; // NEW FIELD
 
-    public TokenResponse(String activeToken, String refreshToken) {
+    public TokenResponse(String activeToken, String refreshToken, Integer userId) { // UPDATED CONSTRUCTOR
         this.accessToken = activeToken;
         this.refreshToken = refreshToken;
+        this.userId = userId;
+    }
+
+    // New default constructor needed for Jackson serialization
+    public TokenResponse() {
     }
 
     public String getAccessToken() {
@@ -32,5 +38,13 @@ public class TokenResponse {
 
     public void setTokenType(String tokenType) {
         this.tokenType = tokenType;
+    }
+
+    public Integer getUserId() { // NEW GETTER
+        return userId;
+    }
+
+    public void setUserId(Integer userId) { // NEW SETTER
+        this.userId = userId;
     }
 }

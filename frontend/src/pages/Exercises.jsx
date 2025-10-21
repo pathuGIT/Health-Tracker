@@ -1,31 +1,44 @@
+// src/pages/Exercises.jsx
 import { useEffect, useState } from "react";
-import axios from "axios"; // Keep axios for the error log if needed, but switch to the service
-import { getExercisesByUser } from "../services/ExerciseService"; // FIX: Import service
+// Removed unused import: axios
+import { getExercisesByUser } from "../services/ExerciseService";
+import { useAuth } from "../context/AuthContext"; // NEW IMPORT: Use AuthContext
 
 // NOTE: This file appears to be a duplicate or outdated version of src/components/Exercises.jsx
 // It should ideally use the centralized component's logic or be removed.
-// For now, we fix it to use the secure service method.
-
-const DEMO_USER_ID = 1; // Assuming this user ID logic is handled by the overall app context
+// We fix it to use the secure service method and dynamically determine the user ID.
 
 const Exercises = () => {
+    // FIX: Get userId from context instead of localStorage placeholder
+    const { userId } = useAuth(); 
+    
     const [exercises, setExercises] = useState([]);
-    // State for handling loading/errors, added for robustness
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Removed old placeholder: const userId = localStorage.getItem('token') ? 1 : null; 
 
     useEffect(() => {
-        // FIX: Use the secure service method instead of direct axios call to the wrong endpoint
         const fetchExercises = async () => {
+            if (!userId) {
+                // Now relying on the context for authentication status
+                setError("Authentication required to view exercises. Please log in.");
+                setLoading(false);
+                return;
+            }
+
             try {
                 setLoading(true);
-                const res = await getExercisesByUser(DEMO_USER_ID);
-                setExercises(res.data.data?.exercises || res.data.data || res.data.exercises || res.data || []);
+                // FIX: Use the dynamically determined userId
+                const res = await getExercisesByUser(userId); 
+                // Assuming response data structure might be nested
+                const data = res.data.data?.exercises || res.data.data || res.data.exercises || res.data || [];
+                setExercises(Array.isArray(data) ? data : []);
+                setError(null);
             } catch (err) {
                  console.error("Error fetching exercises:", err);
                  if (err.response && err.response.status === 403) {
-                     setError("Forbidden: Authentication required or invalid privileges. Please log in.");
+                     setError("Forbidden: Invalid privileges or token expired. Please log in again.");
                  } else {
                      setError("Failed to fetch exercises: " + (err.message || "An unknown error occurred."));
                  }
@@ -34,7 +47,7 @@ const Exercises = () => {
             }
         };
         fetchExercises();
-    }, []);
+    }, [userId]); // Depend on userId to re-fetch after login/logout
 
     if (loading) {
         return <div className="p-6 text-center text-gray-500">Loading exercises...</div>;
@@ -43,7 +56,6 @@ const Exercises = () => {
     if (error) {
          return <div className="p-6 text-center text-red-500">Error: {error}</div>;
     }
-
 
     return (
         <div className="bg-white rounded-lg shadow-md p-6">
@@ -57,7 +69,7 @@ const Exercises = () => {
                         <p>Calories burned: {exercise.caloriesBurned}</p>
                     </div>
                 ))}
-                {exercises.length === 0 && <p className="text-gray-500">No exercises logged yet.</p>}
+                {exercises.length === 0 && <p className="text-gray-500">No exercises logged yet for User ID {userId}.</p>}
             </div>
         </div>
     );
