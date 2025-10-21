@@ -15,16 +15,28 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
         setLoading(true);
 
         try {
-            // Note: Password field is required by the form but unused in the mock backend logic
-            const res = await loginUser(email, "mock-password"); 
-            alert("Login Successful! Token stored (mock JWT).");
+            // Pass the actual password collected from the form.
+            const res = await loginUser(email, password); 
+            alert("Login Successful! Token stored (secure JWT).");
             
-            // Call the success handler in App.js to update the application state
-            onLoginSuccess(res.data.token); 
+            // Extract the actual access token from the nested API response structure: res.data.data.accessToken
+            const accessToken = res.data?.data?.accessToken;
+
+            if (accessToken) {
+                // Call the success handler in App.js to update the application state
+                onLoginSuccess(accessToken); 
+            } else {
+                 // Should not happen if backend is correctly set up, but a safe guard
+                 throw new Error("Authentication succeeded but no token was received.");
+            }
+
         } catch (err) {
             console.error(err);
-            // Display a user-friendly error message
-            setError(err.response?.data?.message || err.response?.data || "Login failed. Check your credentials and server status.");
+            // FIX: Use the specific message from the ApiResponse nested fields (data or message).
+            const apiMessage = err.response?.data?.message || err.response?.data?.data;
+            const fallbackMessage = "Login failed. Check your credentials and server status.";
+            
+            setError(apiMessage || fallbackMessage);
         } finally {
             setLoading(false);
         }

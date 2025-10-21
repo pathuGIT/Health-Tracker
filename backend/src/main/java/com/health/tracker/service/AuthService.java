@@ -40,8 +40,9 @@ public class AuthService {
         if(userRepo.existsByEmail(users.getEmail())){
             throw new IllegalArgumentException("This Email already exists.");
         }
+        // Assuming contact validation should also be checked (based on the original code logic)
         if(userRepo.existsByContact(users.getContact())){
-            throw new IllegalArgumentException("This Email already exists.");
+            throw new IllegalArgumentException("This Contact already exists."); // Corrected error message to be specific
         }
 
         users.setPassword(bCryptPasswordEncoder.encode(users.getPassword()));
@@ -52,31 +53,33 @@ public class AuthService {
     }
 
     public TokenResponse verifyUser(LoginRequest loginRequest) {
+        // NOTE: authenticationManager.authenticate throws an AuthenticationException (e.g., BadCredentialsException)
+        // on failure, so no explicit check for isAuthenticated is required here.
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getLogin(), loginRequest.getPassword())
         );
 
-        if(!authentication.isAuthenticated()){
-            throw new RuntimeException("Invalid credentials");
-        }
-
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        // Spring Security roles are prefixed with "ROLE_", so we remove it here.
         String role = userDetails.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
 
         String activeToken = jwtService.generateActiveToken(userDetails.getUsername(), role);
         String refreshToken = jwtService.generateRefreshToken(userDetails.getUsername(), role);
+        
         if(refreshToken != null){
             if(role.equals("USER")) {
                 Users users = userRepo.findByEmail(userDetails.getUsername());
-                users.setRefresh_token(refreshToken);
-                userRepo.save(users);
-
+                if (users != null) {
+                    users.setRefresh_token(refreshToken);
+                    userRepo.save(users);
+                }
             } else if(role.equals("ADMIN")){
                 Admin admin = adminRepository.findByEmail(userDetails.getUsername());
-                admin.setRefresh_token(refreshToken);
-                adminRepository.save(admin);
+                if (admin != null) {
+                    admin.setRefresh_token(refreshToken);
+                    adminRepository.save(admin);
+                }
             }
-
         }
 
         return new TokenResponse(activeToken, refreshToken);

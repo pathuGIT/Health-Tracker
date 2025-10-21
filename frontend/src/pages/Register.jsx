@@ -18,10 +18,14 @@ const Register = ({ switchToLogin }) => {
         setLoading(true);
 
         try {
-            // Mock default values for User entity completeness
+            // FIX: Pass the required 'password' and a mock 'contact' value 
+            // to satisfy the backend's User entity validation constraints.
+            // Also included age, weight, height for user entity completeness.
             await registerUser({ 
                 name, 
                 email, 
+                password, // Pass the collected password
+                contact: "0770000000", // Mock value as field is missing in UI
                 age: 25, 
                 weight: 70.0,
                 height: 175.0 
@@ -42,8 +46,11 @@ const Register = ({ switchToLogin }) => {
 
             if (err.response && err.response.data) {
                 const errorData = err.response.data;
-                if (typeof errorData === 'object' && errorData !== null) {
-                    errorMessage = errorData.message || errorData.error || errorMessage;
+                // FIX: Check for nested error message structure from ApiResponse
+                if (errorData.message) {
+                    errorMessage = Array.isArray(errorData.data) ? errorData.data.join(', ') : errorData.message;
+                } else if (typeof errorData === 'object' && errorData !== null) {
+                    errorMessage = errorData.error || errorMessage;
                 } else if (typeof errorData === 'string') {
                     errorMessage = errorData;
                 }
@@ -90,7 +97,7 @@ const Register = ({ switchToLogin }) => {
                     <input
                         type="password"
                         className="input-field"
-                        placeholder="Enter password (for mock only)"
+                        placeholder="Enter password"
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         required

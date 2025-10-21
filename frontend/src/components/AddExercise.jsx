@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import api from '../services/Api';
+import { logExercise } from "../services/ExerciseService"; // Import the log function
 
 const AddExercise = ({ onExerciseAdded }) => {
     const [userId, setUserId] = useState("1"); 
@@ -16,7 +17,9 @@ const AddExercise = ({ onExerciseAdded }) => {
         setError(null);
         setLoading(true);
 
-        api.post("/exercise", {
+        // FIX: Use the imported logExercise service function 
+        // (which correctly uses the plural '/api/exercises' path)
+        logExercise({
             userId: parseInt(userId),
             exerciseName: name,
             durationMinutes: parseInt(duration),
@@ -32,7 +35,9 @@ const AddExercise = ({ onExerciseAdded }) => {
             })
             .catch(err => {
                 console.error(err);
-                setError(err.response?.data || "Error logging exercise. Check if User ID exists and server is running.");
+                // Enhanced error message extraction
+                const errorMessage = err.response?.data?.message || "Error logging exercise. Check if User ID exists and server is running.";
+                setError(errorMessage);
             })
             .finally(() => {
                 setLoading(false);

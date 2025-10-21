@@ -1,13 +1,14 @@
 import api from './Api';
 
-// Authentication Endpoints (Now using /api/users for demo simplicity)
+// Authentication Endpoints (Now using /api/auth for Spring Security implementation)
 
 /**
  * Registers a new user.
  * @param {object} userData - User details including name, email, contact, password, age, weight, height.
  */
 export const registerUser = (userData) => {
-    return api.post('/users/register', userData);
+    // FIX: Change endpoint to the secure AuthController endpoint.
+    return api.post('/auth/register', userData);
 };
 
 /**
@@ -16,13 +17,17 @@ export const registerUser = (userData) => {
  * @param {string} password - User's password.
  */
 export const loginUser = (email, password) => {
-    // Passes email and a mock password in the body. The backend is only using email for the mock check.
-    return api.post('/users/login', { email, password }) 
+    // FIX: Change endpoint to the secure AuthController endpoint and map email to 'login'
+    // to match the backend LoginRequest DTO.
+    return api.post('/auth/login', { login: email, password }) 
         .then(res => {
-            if (res.data && res.data.token) {
-                localStorage.setItem("token", res.data.token);
+            // FIX: The AuthController returns ApiResponse<TokenResponse>, so data is nested.
+            const tokenResponse = res.data.data;
+            if (tokenResponse && tokenResponse.accessToken) {
+                // Save the access token to localStorage, which the API interceptor uses.
+                localStorage.setItem("token", tokenResponse.accessToken); 
             }
-            return res;
+            return res; // Return the full response
         });
 };
 
@@ -38,5 +43,6 @@ export const refreshToken = (refreshToken) => {
  * Logs out the current user, invalidating the refresh token on the server.
  */
 export const logoutUser = () => {
+    // FIX: Change endpoint to the secure AuthController endpoint.
     return api.put('/auth/logout');
 };

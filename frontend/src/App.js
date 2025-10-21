@@ -24,10 +24,13 @@ function App() {
     const [exercises, setExercises] = useState([]);
     const [meals, setMeals] = useState([]);
     const [activeTab, setActiveTab] = useState("dashboard"); 
+    // FIX: Get initial token directly from localStorage for immediate check
     const [authToken, setAuthToken] = useState(localStorage.getItem("token"));
     const [modalContent, setModalContent] = useState(null); 
     
-    const DEMO_USER_ID = 1; // Hardcoded user ID for fetching user-specific dashboard data
+    // NOTE: This hardcoded DEMO_USER_ID is a security vulnerability in a real app 
+    // and should be replaced by extracting the authenticated user's ID from the JWT payload.
+    const DEMO_USER_ID = 1; 
 
     // --- Data Fetching Functions (Using the Services) ---
     const fetchUsers = useCallback(() => {
@@ -37,24 +40,39 @@ function App() {
     }, []);
 
     const fetchExercises = useCallback(() => {
+        // FIX: Only fetch if authenticated (authToken exists)
+        if (!authToken) return;
         getExercisesByUser(DEMO_USER_ID)
-            .then(res => setExercises(res.data))
+            .then(res => {
+                // Assuming response format might be nested based on backend ApiResponse
+                setExercises(res.data.data?.exercises || res.data.data || res.data.exercises || res.data || []);
+            })
             .catch(err => console.error("Error fetching exercises:", err));
-    }, []);
+    }, [authToken]);
 
     const fetchMeals = useCallback(() => {
+        // FIX: Only fetch if authenticated (authToken exists)
+        if (!authToken) return;
         getMealsByUser(DEMO_USER_ID)
-            .then(res => setMeals(res.data))
+            .then(res => {
+                 // Assuming response format might be nested based on backend ApiResponse
+                setMeals(res.data.data?.meals || res.data.data || res.data.meals || res.data || []);
+            })
             .catch(err => console.error("Error fetching meals:", err));
-    }, []);
+    }, [authToken]);
 
     const fetchData = useCallback(() => {
+        // Fetch all users (used for the Users page/demo, often public or admin-only)
+        fetchUsers(); 
+        
+        // Only fetch authenticated user-specific data if the token is present
         if (authToken) {
-            fetchUsers();
             fetchExercises();
             fetchMeals();
         } else {
-             fetchUsers(); // Keep fetching users for demo/unauthenticated view
+            // Clear user-specific data when logged out
+            setExercises([]);
+            setMeals([]);
         }
     }, [authToken, fetchUsers, fetchExercises, fetchMeals]);
 
@@ -71,8 +89,10 @@ function App() {
 
     // --- Auth Handlers ---
     const handleLoginSuccess = (token) => {
+        // NOTE: The token is already set in localStorage inside AuthService.js upon success.
         setAuthToken(token);
-        localStorage.setItem("token", token);
+        // Important: Rerun fetchData immediately after login to populate dashboard
+        fetchData(); 
         setActiveTab("dashboard");
         closeModal(); 
     };
@@ -82,6 +102,8 @@ function App() {
         setAuthToken(null);
         setExercises([]); 
         setMeals([]);
+        // Important: Rerun fetchData immediately after logout to clear user data
+        fetchData(); 
         setActiveTab("dashboard"); 
     };
 
@@ -124,6 +146,24 @@ function App() {
     
     // --- Content Renderer ---
     const renderContent = () => {
+        // For unauthenticated users, only show the login prompt on the dashboard
+        if (!authToken && activeTab !== "dashboard") {
+            return (
+                <div className="card text-center max-w-2xl mx-auto p-10 mt-10">
+                    <h1 className="text-4xl font-extrabold text-primary-blue mb-4">Access Denied</h1>
+                    <p className="text-text-muted mb-6">
+                        You must be logged in to view this page.
+                    </p>
+                    <button
+                        className="btn-primary"
+                        onClick={() => handleTabChange("login")}
+                    >
+                        🔑 Log In / Register Now
+                    </button>
+                </div>
+            );
+        }
+
         switch(activeTab) {
             case "dashboard":
                 return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={() => handleTabChange("login")} />;

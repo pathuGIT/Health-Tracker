@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.AuthenticationException; // <-- NEW IMPORT
 
 import java.util.List;
 import java.util.Map;
@@ -58,12 +59,15 @@ public class AuthController {
         try {
             TokenResponse response = authService.verifyUser(loginRequest);
             return ResponseEntity.ok(new ApiResponse<TokenResponse>("User Login Successfull.", response ));
+        } catch (AuthenticationException ex) { // <-- CATCH SPECIFIC AUTHENTICATION ERRORS
+            // Authentication failures like BadCredentialsException (wrong password)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<String>("Error Login", "Invalid login credentials."));
         } catch (IllegalArgumentException ex) {
-            // Bad request: invalid username/password or user not found
+            // Bad request: invalid username/password or user not found (if thrown specifically by logic)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<String>("Error Login", ex.getMessage()));
         } catch (Exception ex) {
-            // Internal server error for unexpected cases
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<String>("An unexpected error occurred", null));
+            // Internal server error for truly unexpected cases
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<String>("An unexpected error occurred: " + ex.getMessage(), null));
         }
     }
 
