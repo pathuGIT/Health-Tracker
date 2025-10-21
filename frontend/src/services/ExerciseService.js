@@ -1,13 +1,14 @@
 import api from './Api';
 
-// Exercise Endpoints (/api/exercise)
+// Exercise Endpoints (/api/exercises)
 
 /**
  * Logs a new exercise session.
  * @param {object} exerciseData - { userId, exerciseName, durationMinutes, caloriesBurned }
  */
 export const logExercise = (exerciseData) => {
-    return api.post('/exercise', exerciseData);
+    // FIX: Changed to plural /exercises to match controller mapping
+    return api.post('/exercises', exerciseData);
 };
 
 /**
@@ -15,7 +16,9 @@ export const logExercise = (exerciseData) => {
  * @param {number} userId
  */
 export const getExercisesByUser = (userId) => {
-    return api.get(`/exercise/user/${userId}`);
+    console.log("Fetching exercises for userId:", userId);
+    // FIX: Changed API path to use plural base path /exercises
+    return api.get(`/exercises/user/${userId}`);
 };
 
 /**
@@ -24,7 +27,8 @@ export const getExercisesByUser = (userId) => {
  * @param {string} date - Date in YYYY-MM-DD format.
  */
 export const getExercisesByUserAndDate = (userId, date) => {
-    return api.get(`/exercise/user/${userId}/date/${date}`);
+    // FIX: Changed API path to use plural base path /exercises
+    return api.get(`/exercises/user/${userId}/date/${date}`);
 };
 
 /**
@@ -33,7 +37,8 @@ export const getExercisesByUserAndDate = (userId, date) => {
  * @param {string} date - Date in YYYY-MM-DD format.
  */
 export const getTotalCaloriesBurned = (userId, date) => {
-    return api.get(`/exercise/user/${userId}/date/${date}/calories-burned`);
+    // FIX: Changed API path to use plural base path /exercises
+    return api.get(`/exercises/user/${userId}/date/${date}/calories-burned`);
 };
 
 /**
@@ -42,5 +47,6 @@ export const getTotalCaloriesBurned = (userId, date) => {
  * @param {string} date - Date in YYYY-MM-DD format.
  */
 export const getDailyExerciseSummary = (userId, date) => {
-    return api.get(`/exercise/user/${userId}/date/${date}/summary`);
+    // FIX: Changed API path to use plural base path /exercises
+    return api.get(`/exercises/user/${userId}/date/${date}/summary`);
 };

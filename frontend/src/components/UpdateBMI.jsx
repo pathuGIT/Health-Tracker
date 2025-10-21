@@ -1,10 +1,16 @@
 // src/components/UpdateBMI.jsx
 import { useState } from "react";
 import { motion } from "framer-motion";
-import api from '../services/Api';
+// REMOVED: import api from '../services/Api';
+import { useAuth } from "../context/AuthContext"; 
+// NEW IMPORT: Use the dedicated service function
+import { recordHealthMetric } from "../services/HealthMetricService"; 
 
 const UpdateBMI = ({ closeModal }) => {
-    const [userId, setUserId] = useState("1"); 
+    // FIX: Get userId, isAuthenticated, and fetchUserProfile from context
+    const { userId, isAuthenticated, fetchUserProfile } = useAuth(); 
+
+    // REMOVED local userId state (setUserId)
     const [weight, setWeight] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -12,20 +18,43 @@ const UpdateBMI = ({ closeModal }) => {
 
 
     const handleSubmit = () => {
+        // FIX: Pre-check authentication status
+        if (!isAuthenticated || !userId) {
+            setError("Must be logged in to update metrics.");
+            return;
+        }
+
+        if (!weight || parseFloat(weight) <= 0) {
+            setError("Please enter a valid weight.");
+            return;
+        }
+        
         setError(null);
         setSuccess(null);
         setLoading(true);
         
-        // Calls the /api/bmi endpoint to record a HealthMetric and calculate BMI.
-        api.post(`/bmi?userId=${userId}&weight=${weight}`)
+        // FIX: Use the dedicated service function to record the health metric 
+        // The service automatically handles the POST /api/health-metrics endpoint.
+        recordHealthMetric({
+            userId: userId,
+            weight: parseFloat(weight)
+            // BMI calculation is handled automatically by HealthMetricService.java
+        })
             .then(res => {
-                setSuccess(res.data);
+                // The backend API is returning a HealthMetric object, but we display a generic success
+                setSuccess("Health metrics updated successfully! BMI recalculated.");
+                
+                // IMPORTANT: Trigger re-fetch of user profile/data so Dashboard/Profile updates
+                fetchUserProfile(userId); 
+
                 // Close the modal after a brief delay
                 setTimeout(closeModal, 1500); 
             })
             .catch(err => {
                 console.error(err);
-                setError(err.response?.data || "Error updating metrics. Check if User ID exists and server is running.");
+                // FIX: Update error message extraction to be more robust for different APIs
+                const errorMessage = err.response?.data?.message || err.message || "Error updating metrics. Check server status or credentials.";
+                setError(errorMessage);
             })
             .finally(() => {
                 setLoading(false);
@@ -61,9 +90,8 @@ const UpdateBMI = ({ closeModal }) => {
                     <input
                         type="number"
                         className="input-field bg-gray-50 cursor-not-allowed"
-                        placeholder="Enter user ID"
-                        value={userId}
-                        onChange={e => setUserId(e.target.value)}
+                        placeholder="Logged in User ID"
+                        value={userId || ''} 
                         disabled
                     />
                 </div>
@@ -82,7 +110,7 @@ const UpdateBMI = ({ closeModal }) => {
             <button
                 className="w-full btn-primary"
                 onClick={handleSubmit}
-                disabled={loading || !!success}
+                disabled={loading || !!success || !isAuthenticated || !userId} 
             >
                 {loading ? (
                     <span className="flex items-center justify-center">

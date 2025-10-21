@@ -8,59 +8,89 @@ import AddUser from "./components/AddUser";
 import AddExercise from "./components/AddExercise";
 import AddMeal from "./components/AddMeal";
 import UpdateBMI from "./components/UpdateBMI";
-// import Navigation from "./components/Navigation"; // REMOVED
-// import Footer from "./components/Footer"; // REMOVED
 import Users from "./components/Users";
-import Exercises from './components/Exercises'; // Update this path
-import MealsPage from "./pages/Meals"; // Using the redesigned version
+import Exercises from './components/Exercises'; 
+import MealsPage from "./pages/Meals"; 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Profile from "./pages/Profile"; // NEW IMPORT
-import Sidebar from "./components/Sidebar"; // NEW IMPORT
-import Modal from "./components/Modal"; // NEW IMPORT
+import Profile from "./pages/Profile"; 
+import Sidebar from "./components/Sidebar"; 
+import Modal from "./components/Modal"; 
+import { useAuth } from "./context/AuthContext"; 
+
 
 function App() {
+    // FIX: Get isAdmin flag
+    const { userId, authToken, handleLogout, isAuthLoading, isAdmin } = useAuth();
+    
     const [users, setUsers] = useState([]);
     const [exercises, setExercises] = useState([]);
     const [meals, setMeals] = useState([]);
     const [activeTab, setActiveTab] = useState("dashboard"); 
-    const [authToken, setAuthToken] = useState(localStorage.getItem("token"));
+    
     const [modalContent, setModalContent] = useState(null); 
     
-    const DEMO_USER_ID = 1; // Hardcoded user ID for fetching user-specific dashboard data
-
-    // --- Data Fetching Functions (Using the Services) ---
+    // --- Data Fetching Functions ---
     const fetchUsers = useCallback(() => {
+        // Only fetch users if Admin is logged in, or if we need a demo user list (but dashboard mostly uses user's data)
+        // Since Users.jsx fetches all users, we only need to call this if we are actively viewing the Users page.
+        // Keeping this for Dashboard display in unauthenticated state for demo/legacy.
         getAllUsers()
             .then(res => setUsers(res.data))
             .catch(err => console.error("Error fetching all users:", err));
     }, []);
 
     const fetchExercises = useCallback(() => {
-        getExercisesByUser(DEMO_USER_ID)
-            .then(res => setExercises(res.data))
+        if (!userId) { 
+            setExercises([]);
+            return;
+        }
+        getExercisesByUser(userId) 
+            .then(res => {
+                setExercises(res.data.data?.exercises || res.data.data || res.data.exercises || res.data || []);
+            })
             .catch(err => console.error("Error fetching exercises:", err));
-    }, []);
+    }, [userId]); 
 
     const fetchMeals = useCallback(() => {
-        getMealsByUser(DEMO_USER_ID)
-            .then(res => setMeals(res.data))
+        if (!userId) { 
+            setMeals([]);
+            return;
+        }
+        getMealsByUser(userId) 
+            .then(res => {
+                setMeals(res.data.data?.meals || res.data.data || res.data.meals || res.data || []);
+            })
             .catch(err => console.error("Error fetching meals:", err));
-    }, []);
+    }, [userId]); 
 
     const fetchData = useCallback(() => {
-        if (authToken) {
-            fetchUsers();
+        
+        if (isAuthLoading) {
+            setExercises([]);
+            setMeals([]);
+            return;
+        }
+        
+        // Admins and Users need Dashboard data (but Admin Dashboard might show different things)
+        if (isAdmin || activeTab === "users") {
+            fetchUsers(); 
+        }
+
+        if (userId && !isAdmin) { // Fetch user-specific data only for non-admin users
             fetchExercises();
             fetchMeals();
         } else {
-             fetchUsers(); // Keep fetching users for demo/unauthenticated view
+            // Clear user-specific data for Admin/Unauthenticated
+            setExercises([]);
+            setMeals([]);
         }
-    }, [authToken, fetchUsers, fetchExercises, fetchMeals]);
+    }, [userId, isAuthLoading, isAdmin, activeTab, fetchUsers, fetchExercises, fetchMeals]);
 
     useEffect(() => {
         // Set initial tab based on auth state
         if (authToken && (activeTab === "login" || activeTab === "register")) {
+            // Default authenticated view
             setActiveTab("dashboard");
         } else if (!authToken && (activeTab !== "dashboard" && activeTab !== "login" && activeTab !== "register")) {
             // Redirect unauthorized access to dashboard/login prompt
@@ -68,22 +98,6 @@ function App() {
         }
         fetchData();
     }, [authToken, fetchData, activeTab]);
-
-    // --- Auth Handlers ---
-    const handleLoginSuccess = (token) => {
-        setAuthToken(token);
-        localStorage.setItem("token", token);
-        setActiveTab("dashboard");
-        closeModal(); 
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        setAuthToken(null);
-        setExercises([]); 
-        setMeals([]);
-        setActiveTab("dashboard"); 
-    };
 
     // --- Modal Handlers ---
     const openModal = (content) => {
@@ -94,7 +108,28 @@ function App() {
         setModalContent(null);
     };
 
+    const handleLoginSuccess = () => { 
+        setActiveTab("dashboard");
+        closeModal(); 
+    };
+
     const handleTabChange = (tabId) => {
+        // Check if the user is authorized for the tab/modal
+        const isUserSpecific = ["profile", "exercises", "meals", "addExercise", "addMeal", "updateBMI"].includes(tabId);
+        const isRestrictedToAdmin = ["users", "addUser"].includes(tabId);
+
+        if (isUserSpecific && !userId) {
+            return handleTabChange("login");
+        }
+        
+        // This is a minimal implementation, proper role-based authorization would be better
+        if (isRestrictedToAdmin && !isAdmin) {
+             // If a regular user somehow clicks an admin link (not visible in the sidebar, but for safety)
+             setActiveTab("dashboard");
+             return alert("Access Denied: Admin privileges required.");
+        }
+
+
         // Logic for showing forms in a modal
         switch(tabId) {
             case "addUser":
@@ -107,14 +142,15 @@ function App() {
                 openModal(<AddMeal onMealAdded={() => { fetchMeals(); closeModal(); }} />);
                 break;
             case "updateBMI":
-                openModal(<UpdateBMI closeModal={closeModal} />);
+                openModal(<UpdateBMI closeModal={() => { 
+                    fetchData(); // Re-fetch user data to update dashboard/profile
+                    closeModal(); 
+                }} />); 
                 break;
             case "login":
-                // Nested modals for seamless switching between login/register
                 openModal(<Login onLoginSuccess={handleLoginSuccess} switchToRegister={() => { closeModal(); openModal(<Register switchToLogin={() => { closeModal(); handleTabChange("login"); }} />); }} />);
                 break;
             case "register":
-                // Nested modals for seamless switching between register/login
                 openModal(<Register switchToLogin={() => { closeModal(); openModal(<Login onLoginSuccess={handleLoginSuccess} switchToRegister={() => { closeModal(); openModal(null); }} />) }} />);
                 break;
             default:
@@ -124,16 +160,38 @@ function App() {
     
     // --- Content Renderer ---
     const renderContent = () => {
+        // For unauthenticated users, only show the login prompt on the dashboard
+        if (!authToken && activeTab !== "dashboard") {
+            return (
+                <div className="card text-center max-w-2xl mx-auto p-10 mt-10">
+                    <h1 className="text-4xl font-extrabold text-primary-blue mb-4">Access Denied</h1>
+                    <p className="text-text-muted mb-6">
+                        You must be logged in to view this page.
+                    </p>
+                    <button
+                        className="btn-primary"
+                        onClick={() => handleTabChange("login")}
+                    >
+                        🔑 Log In / Register Now
+                    </button>
+                </div>
+            );
+        }
+
         switch(activeTab) {
             case "dashboard":
                 return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={() => handleTabChange("login")} />;
             case "users":
                 return <Users />; 
             case "exercises":
+                // If admin views exercises, they get a blank page. Restricting to non-admin or forcing user to profile tab
+                if (isAdmin) return <p className="card p-5">Admin view of exercises is not fully implemented. Please view individual user data.</p>;
                 return <Exercises />;
             case "meals":
+                if (isAdmin) return <p className="card p-5">Admin view of meals is not fully implemented. Please view individual user data.</p>;
                 return <MealsPage />; 
             case "profile":
+                if (isAdmin) return <p className="card p-5">Admin does not have a user profile page. Switch to Dashboard or Users tab.</p>;
                 return <Profile />;
             default:
                 return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={() => handleTabChange("login")} />;

@@ -2,20 +2,31 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import api from '../services/Api';
+import { logMeal } from "../services/MealService"; // Import the logMeal function
+import { useAuth } from "../context/AuthContext"; // NEW IMPORT
 
 const AddMeal = ({ onMealAdded }) => {
-    const [userId, setUserId] = useState("1"); 
+    // FIX: Get userId and isAuthenticated from context
+    const { userId, isAuthenticated } = useAuth();
+    // REMOVED local userId state (setUserId)
     const [name, setName] = useState("");
     const [calories, setCalories] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     const handleSubmit = () => {
+        // FIX: Pre-check authentication status
+        if (!isAuthenticated || !userId) {
+            setError("Must be logged in to log a meal.");
+            return;
+        }
+
         setError(null);
         setLoading(true);
 
-        api.post("/meal", {
-            userId: parseInt(userId),
+        // FIX: Use the userId from context
+        logMeal({
+            userId: userId,
             mealName: name,
             caloriesConsumed: parseFloat(calories)
         })
@@ -28,7 +39,9 @@ const AddMeal = ({ onMealAdded }) => {
             })
             .catch(err => {
                 console.error(err);
-                setError(err.response?.data || "Error logging meal. Check if User ID exists and server is running.");
+                // FIX: Update error message extraction to be more robust
+                const errorMessage = err.response?.data?.message || err.message || "Error logging meal. Check if User ID exists and server is running.";
+                setError(errorMessage);
             })
             .finally(() => {
                 setLoading(false);
@@ -55,9 +68,8 @@ const AddMeal = ({ onMealAdded }) => {
                     <input
                         type="number"
                         className="input-field bg-gray-50 cursor-not-allowed"
-                        placeholder="Enter user ID"
-                        value={userId}
-                        onChange={e => setUserId(e.target.value)}
+                        placeholder="Logged in User ID"
+                        value={userId || ''} // FIX: Display context userId
                         disabled
                     />
                 </div>
@@ -85,7 +97,7 @@ const AddMeal = ({ onMealAdded }) => {
             <button
                 className="w-full btn-primary"
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || !isAuthenticated || !userId} // FIX: Disable if not logged in
             >
                 {loading ? (
                     <span className="flex items-center justify-center">

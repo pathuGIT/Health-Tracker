@@ -3,23 +3,33 @@ import React from "react";
 import { motion } from "framer-motion";
 import BMIChart from "./charts/BMIChart";
 import CaloriesChart from "./charts/CaloriesChart";
+import { useAuth } from "../context/AuthContext"; 
 
 // Helper function to calculate total calories (for simplicity)
 const calculateTotalCalories = (items, key) => items.reduce((acc, item) => acc + (item[key] || 0), 0);
 
 const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
-    const activeUser = users.length > 0 ? users[0] : null;
+    // FIX: Get isAdmin flag from context
+    const { user, isAdmin } = useAuth();
+    
+    // Extract user details from context or default to null
+    const activeUserName = user?.name;
+    const activeUserWeight = user?.weight;
+    const activeUserHeight = user?.height;
 
-    // --- Aggregated Stats ---
+    // --- Aggregated Stats (User Only) ---
     const totalExercises = exercises.length;
     const totalMeals = meals.length;
     const totalCaloriesBurned = calculateTotalCalories(exercises, 'caloriesBurned');
     const totalCaloriesConsumed = calculateTotalCalories(meals, 'caloriesConsumed');
     const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
 
-    // Default BMI data
-    const demoBMI = activeUser && activeUser.height > 0 ? (activeUser.weight / ((activeUser.height / 100) ** 2)).toFixed(1) : 'N/A';
-    const demoWeight = activeUser ? `${activeUser.weight} kg` : 'N/A';
+    // Calculate BMI
+    const demoBMI = (activeUserWeight && activeUserHeight > 0) 
+        ? (activeUserWeight / ((activeUserHeight / 100) ** 2)).toFixed(1) 
+        : 'N/A';
+        
+    const demoWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
 
     const StatCard = ({ title, value, icon, color }) => (
         <motion.div
@@ -35,28 +45,177 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
         </motion.div>
     );
 
+    // ENHANCED: Attractive Pre-Login Dashboard
     if (showLoginPrompt) {
         return (
             <motion.div 
-                className="card text-center max-w-2xl mx-auto p-10"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                className="space-y-12"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.7 }}
             >
-                <h1 className="text-4xl font-extrabold text-primary-blue mb-4">Welcome to FitTrack Pro</h1>
-                <p className="text-text-muted mb-6">
-                    Log in or register to unlock your personalized health dashboard and start tracking your progress.
-                </p>
-                <button
-                    className="btn-primary"
-                    onClick={onLoginClick}
+                {/* Hero Section */}
+                <div className="text-center max-w-4xl mx-auto pt-8">
+                    <motion.h1 
+                        className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent-green mb-6"
+                        initial={{ y: -30, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.6 }}
+                    >
+                        Transform Your Fitness Journey
+                    </motion.h1>
+                    <motion.p 
+                        className="text-xl text-text-muted mb-10 max-w-2xl mx-auto leading-relaxed"
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2, duration: 0.6 }}
+                    >
+                        Track workouts, monitor nutrition, and achieve your health goals with our comprehensive fitness platform.
+                    </motion.p>
+                    <motion.button
+                        className="btn-primary text-lg px-8 py-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                        onClick={onLoginClick}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4, duration: 0.5 }}
+                    >
+                        🚀 Start Your Fitness Journey - Log In / Register
+                    </motion.button>
+                </div>
+
+                {/* Features Grid */}
+                <motion.div 
+                    className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16"
+                    initial={{ y: 40, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6, duration: 0.7 }}
                 >
-                    🔑 Log In / Register Now
-                </button>
+                    {/* Feature 1 */}
+                    <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-primary-blue">
+                        <div className="text-5xl mb-4">📊</div>
+                        <h3 className="text-2xl font-bold text-text-dark mb-4">Advanced Analytics</h3>
+                        <p className="text-text-muted">
+                            Track BMI, calories, and progress with beautiful charts and insights to optimize your fitness strategy.
+                        </p>
+                    </div>
+
+                    {/* Feature 2 */}
+                    <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-green">
+                        <div className="text-5xl mb-4">💪</div>
+                        <h3 className="text-2xl font-bold text-text-dark mb-4">Workout Tracking</h3>
+                        <p className="text-text-muted">
+                            Log exercises, monitor calories burned, and build personalized workout routines that deliver results.
+                        </p>
+                    </div>
+
+                    {/* Feature 3 */}
+                    <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-red">
+                        <div className="text-5xl mb-4">🍎</div>
+                        <h3 className="text-2xl font-bold text-text-dark mb-4">Nutrition Monitoring</h3>
+                        <p className="text-text-muted">
+                            Track meals, count calories, and maintain perfect balance between nutrition and exercise goals.
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* Demo Preview Section */}
+                <motion.div 
+                    className="card p-8 bg-gradient-to-br from-blue-50 to-green-50 border-2 border-primary-blue border-opacity-20"
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.8, duration: 0.6 }}
+                >
+                    <h2 className="text-3xl font-bold text-center text-text-dark mb-6">See What Awaits You</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">⚖️</div>
+                            <p className="font-semibold text-text-dark">BMI Tracking</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">📈</div>
+                            <p className="font-semibold text-text-dark">Progress Charts</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">🔥</div>
+                            <p className="font-semibold text-text-dark">Calorie Analysis</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">🎯</div>
+                            <p className="font-semibold text-text-dark">Goal Setting</p>
+                        </div>
+                    </div>
+                    
+                    <div className="text-center">
+                        <button
+                            className="btn-primary px-8 py-3 rounded-full font-semibold"
+                            onClick={onLoginClick}
+                        >
+                            🔑 Unlock All Features - Join Now!
+                        </button>
+                    </div>
+                </motion.div>
+
+                {/* Testimonial/Stats Section */}
+                <motion.div 
+                    className="text-center py-8"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1, duration: 0.6 }}
+                >
+                    <p className="text-text-muted italic text-lg">
+                        "FitTrack Pro helped me lose 15kg and maintain my ideal weight for over a year!"
+                    </p>
+                    <p className="text-text-dark font-semibold mt-2">- Sarah M., FitTrack Pro User</p>
+                </motion.div>
             </motion.div>
         );
     }
+    
+    // --- NEW: ADMIN DASHBOARD VIEW ---
+    if (isAdmin) {
+        return (
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-8"
+            >
+                <h1 className="text-3xl font-bold text-accent-green">Admin Dashboard 👑</h1>
+                <p className="text-text-muted">Welcome back, {activeUserName || 'Admin'}. You have oversight over **{users.length}** registered users.</p>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <StatCard title="Total Registered Users" value={users.length} icon="👥" color="#4F46E5" />
+                    <StatCard title="Actions Available" value="Manage Users" icon="🛠️" color="#F59E0B" />
+                    <StatCard title="Add New User" value="Register User" icon="➕" color="#10B981" />
+                </div>
+
+                <motion.div 
+                    className="card p-6"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <h2 className="text-xl font-semibold text-text-dark mb-4">Quick Links</h2>
+                    <ul className="space-y-2">
+                        <li>
+                            <button onClick={() => onLoginClick("users")} className="text-primary-blue hover:underline">
+                                View All User Profiles
+                            </button>
+                        </li>
+                        <li>
+                             <button onClick={() => onLoginClick("addUser")} className="text-primary-blue hover:underline">
+                                Manually Register a New User
+                            </button>
+                        </li>
+                    </ul>
+                </motion.div>
+            </motion.div>
+        );
+    }
+    
+    // --- EXISTING: USER DASHBOARD VIEW ---
     return (
         <motion.div 
             initial={{ opacity: 0 }}
@@ -64,7 +223,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             transition={{ duration: 0.3 }}
             className="space-y-8"
         >
-            <h1 className="text-xl font-semibold text-text-dark">Hi {activeUser?.name || 'User'}! Here is your progress snapshot.</h1>
+            <h1 className="text-xl font-semibold text-text-dark">Hi {activeUserName || 'User'}! Here is your progress snapshot.</h1>
             
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

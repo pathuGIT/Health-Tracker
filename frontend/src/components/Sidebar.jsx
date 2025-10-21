@@ -1,26 +1,49 @@
 // frontend/src/components/Sidebar.jsx
 import React from "react";
 import { motion } from "framer-motion";
-
-const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: "📊" },
-    { id: "users", label: "Users", icon: "👥" },
-    { id: "exercises", label: "Workouts", icon: "💪" },
-    { id: "meals", label: "Nutrition", icon: "🍎" },
-    { id: "profile", label: "My Profile", icon: "👤" }, // Mapped from Profile.jsx
-    { id: "addUser", label: "Register New User", icon: "➕" },
-    { id: "addExercise", label: "Log Workout", icon: "🏋️" },
-    { id: "addMeal", label: "Log Meal", icon: "🍽️" },
-    { id: "updateBMI", label: "Update Metrics", icon: "⚖️" },
-];
+import { useAuth } from "../context/AuthContext"; // NEW IMPORT
 
 const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
-    // Determine the set of links to show based on auth status
-    const filteredNavItems = authToken ? navItems : [
+    // FIX: Get userRole and isAdmin from context
+    const { userRole, isAdmin } = useAuth(); 
+
+    const allUserItems = [
         { id: "dashboard", label: "Dashboard", icon: "📊" },
+        { id: "profile", label: "My Profile", icon: "👤" },
+        { id: "exercises", label: "Workouts", icon: "💪" },
+        { id: "meals", label: "Nutrition", icon: "🍎" },
+        { id: "addExercise", label: "Log Workout", icon: "🏋️" },
+        { id: "addMeal", label: "Log Meal", icon: "🍽️" },
+        { id: "updateBMI", label: "Update Metrics", icon: "⚖️" },
+    ];
+    
+    const adminItems = [
+        { id: "dashboard", label: "Admin Dashboard", icon: "👑" },
+        { id: "users", label: "Manage Users", icon: "👥" },
+        { id: "addUser", label: "Register New User", icon: "➕" },
+        // Admin tasks like monitoring can be added here
+    ];
+    
+    const unauthenticatedItems = [
+        { id: "dashboard", label: "Home", icon: "🏠" },
         { id: "login", label: "Login", icon: "🔑" },
         { id: "register", label: "Register", icon: "📝" },
     ];
+    
+    // Determine the set of links to show based on auth status and role
+    let filteredNavItems = [];
+    if (!authToken) {
+        filteredNavItems = unauthenticatedItems;
+    } else if (isAdmin) {
+        filteredNavItems = adminItems;
+    } else {
+        filteredNavItems = allUserItems;
+    }
+    
+    // Fallback to allUserItems if role is not set yet (during loading)
+    if (authToken && !userRole) {
+         filteredNavItems = allUserItems;
+    }
 
     return (
         <motion.div
@@ -35,6 +58,10 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
                 <h1 className="text-3xl font-bold text-primary-blue flex items-center">
                     <span className="text-accent-green mr-2 text-4xl">💚</span> FitTrack Pro
                 </h1>
+                {/* NEW: Display Role */}
+                {userRole && (
+                     <p className="text-xs font-medium text-text-muted mt-1 px-1">Role: <span className="font-semibold text-primary-blue">{userRole}</span></p>
+                )}
             </div>
 
             {/* Navigation Links */}

@@ -1,9 +1,12 @@
 // src/pages/Login.jsx
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { loginUser } from "../services/AuthService";
+import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 const Login = ({ onLoginSuccess, switchToRegister }) => {
+    // FIX: Get handleLogin from context
+    const { handleLogin } = useAuth();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState(null);
@@ -15,16 +18,25 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
         setLoading(true);
 
         try {
-            // Note: Password field is required by the form but unused in the mock backend logic
-            const res = await loginUser(email, "mock-password"); 
-            alert("Login Successful! Token stored (mock JWT).");
-            
-            // Call the success handler in App.js to update the application state
-            onLoginSuccess(res.data.token); 
+            // FIX: Use context handleLogin, which manages token storage, state update, and profile fetch
+            const success = await handleLogin(email, password); 
+
+            if (success) {
+                alert("Login Successful! Redirecting to dashboard.");
+                // Signal App.js for UI transition (modal close and tab set)
+                onLoginSuccess(); 
+            } else {
+                 // handleLogin should throw on failure, but for explicit clarity
+                 throw new Error("Authentication failed unexpectedly.");
+            }
+
         } catch (err) {
             console.error(err);
-            // Display a user-friendly error message
-            setError(err.response?.data?.message || err.response?.data || "Login failed. Check your credentials and server status.");
+            // FIX: Error handling to extract message from API response
+            const apiMessage = err.response?.data?.message || err.response?.data?.data;
+            const fallbackMessage = "Login failed. Check your credentials and server status.";
+            
+            setError(apiMessage || fallbackMessage);
         } finally {
             setLoading(false);
         }
