@@ -28,31 +28,40 @@ public class UsersController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ADMIN')") // FIX: Require ADMIN authority to add users
     public Users addUser(@RequestBody Users user) {
         return userRepository.save(user);
     }
 
     // --- Authentication Endpoints (MOCK LOGIC REMOVED) ---
-    // The secure authentication implementation (login/register/refresh) is now only in AuthController.java.
+    // The secure authentication implementation (login/register/refresh) is now only
+    // in AuthController.java.
 
-    // Helper: try common getter names via reflection to safely obtain the user id without assuming entity method name
+    // Helper: try common getter names via reflection to safely obtain the user id
+    // without assuming entity method name
     private String extractUserId(Users user) {
-        if (user == null) return null;
+        if (user == null)
+            return null;
         try {
             // try getUserId()
             Method m = user.getClass().getMethod("getUserId");
             Object id = m.invoke(user);
-            if (id != null) return id.toString();
-        } catch (Exception ignored) {}
+            if (id != null)
+                return id.toString();
+        } catch (Exception ignored) {
+        }
 
         try {
             // fallback to getId()
             Method m2 = user.getClass().getMethod("getId");
             Object id2 = m2.invoke(user);
-            if (id2 != null) return id2.toString();
-        } catch (Exception ignored) {}
+            if (id2 != null)
+                return id2.toString();
+        } catch (Exception ignored) {
+        }
 
-        // last resort: try a field named "userId" via getter convention (already covered) or return null
+        // last resort: try a field named "userId" via getter convention (already
+        // covered) or return null
         return null;
     }
 }
