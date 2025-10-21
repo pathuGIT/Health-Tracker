@@ -16,6 +16,7 @@ import Register from "./pages/Register";
 import Profile from "./pages/Profile"; 
 import Sidebar from "./components/Sidebar"; 
 import Modal from "./components/Modal"; 
+import Header from "./components/Header"; // NEW IMPORT
 import { useAuth } from "./context/AuthContext"; 
 
 
@@ -94,6 +95,7 @@ function App() {
             setActiveTab("dashboard");
         } else if (!authToken && (activeTab !== "dashboard" && activeTab !== "login" && activeTab !== "register")) {
             // Redirect unauthorized access to dashboard/login prompt
+            // Now handled by the outer shell, redirecting to the main dashboard.
             setActiveTab("dashboard");
         }
         fetchData();
@@ -119,6 +121,7 @@ function App() {
         const isRestrictedToAdmin = ["users", "addUser"].includes(tabId);
 
         if (isUserSpecific && !userId) {
+            // If trying to access user page while logged out, navigate to login page/modal.
             return handleTabChange("login");
         }
         
@@ -161,26 +164,19 @@ function App() {
     // --- Content Renderer ---
     const renderContent = () => {
         // For unauthenticated users, only show the login prompt on the dashboard
-        if (!authToken && activeTab !== "dashboard") {
-            return (
-                <div className="card text-center max-w-2xl mx-auto p-10 mt-10">
-                    <h1 className="text-4xl font-extrabold text-primary-blue mb-4">Access Denied</h1>
-                    <p className="text-text-muted mb-6">
-                        You must be logged in to view this page.
-                    </p>
-                    <button
-                        className="btn-primary"
-                        onClick={() => handleTabChange("login")}
-                    >
-                        🔑 Log In / Register Now
-                    </button>
-                </div>
-            );
+        if (!authToken && activeTab !== "dashboard" && activeTab !== "login" && activeTab !== "register") {
+            // This is hit if the user somehow navigates to a protected page (e.g., /profile) while logged out.
+            // Now handled by the outer shell, redirecting to the main dashboard.
+            setActiveTab("dashboard");
+            return null; // Will trigger re-render to Dashboard
         }
 
         switch(activeTab) {
             case "dashboard":
-                return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={() => handleTabChange("login")} />;
+            case "login":
+            case "register":
+                // Dashboard handles its own login prompt presentation. We use the onLoginClick to trigger modals via handleTabChange.
+                return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={handleTabChange} />;
             case "users":
                 return <Users />; 
             case "exercises":
@@ -194,7 +190,7 @@ function App() {
                 if (isAdmin) return <p className="card p-5">Admin does not have a user profile page. Switch to Dashboard or Users tab.</p>;
                 return <Profile />;
             default:
-                return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={() => handleTabChange("login")} />;
+                return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={handleTabChange} />;
         }
     };
 
@@ -210,37 +206,54 @@ function App() {
         else modalTitle = "Form";
     }
 
+    // Determine padding to account for fixed header
+    const mainContentPaddingTop = 'pt-[80px]'; // Adding approx. 80px padding to top for the fixed header
+    
+    // Logic to determine main content left margin based on sidebar visibility
+    const mainContentMarginLeft = authToken ? 'ml-64' : 'ml-0';
+
+
     return (
-        <div className="min-h-screen bg-background-light flex">
-            {/* Left Sidebar Navigation */}
-            <Sidebar 
-                activeTab={activeTab} 
-                setActiveTab={handleTabChange}
-                onLogout={handleLogout}
-                authToken={authToken}
-            />
+        <div className="min-h-screen bg-background-light flex flex-col">
+            {/* NEW: Global Header (always visible) */}
+            <Header onTabChange={handleTabChange} activeTab={activeTab} />
 
-            {/* Main Content Area */}
-            <div className="flex-grow ml-64 p-8">
-                {/* Header for main content area */}
-                <header className="mb-8 flex justify-between items-center">
-                    <h2 className="text-3xl font-bold text-text-dark capitalize">
-                        {/* Display a nicer header based on the active tab */}
-                        {activeTab === "meals" ? "Nutrition Log" : 
-                         activeTab === "exercises" ? "Workout Log" : 
-                         activeTab.replace(/([A-Z])/g, ' $1').trim()}
-                    </h2>
-                </header>
+            <div className="flex flex-grow">
+                {/* Left Sidebar Navigation - Only show if authenticated */}
+                {authToken && (
+                    <Sidebar 
+                        activeTab={activeTab} 
+                        setActiveTab={handleTabChange}
+                        onLogout={handleLogout}
+                        authToken={authToken}
+                    />
+                )}
 
-                {/* Content */}
-                <main className="min-h-[70vh]">
-                    {renderContent()}
-                </main>
+                {/* Main Content Area - Conditional Margin and Padding */}
+                <div className={`flex-grow p-8 ${mainContentPaddingTop} ${mainContentMarginLeft}`}>
+                    
+                    {/* Header for main content area (Moved to new Header.jsx for unauthenticated view) */}
+                    {authToken && (
+                        <header className="mb-8 flex justify-between items-center">
+                            <h2 className="text-3xl font-bold text-text-dark capitalize">
+                                {/* Display a nicer header based on the active tab */}
+                                {activeTab === "meals" ? "Nutrition Log" : 
+                                 activeTab === "exercises" ? "Workout Log" : 
+                                 activeTab.replace(/([A-Z])/g, ' $1').trim()}
+                            </h2>
+                        </header>
+                    )}
 
-                {/* Footer - Minimalist */}
-                <footer className="mt-12 text-center text-text-muted text-sm">
-                    &copy; {new Date().getFullYear()} FitTrack Pro. All rights reserved.
-                </footer>
+                    {/* Content */}
+                    <main className="min-h-[70vh]">
+                        {renderContent()}
+                    </main>
+
+                    {/* Footer - Minimalist */}
+                    <footer className="mt-12 text-center text-text-muted text-sm">
+                        &copy; {new Date().getFullYear()} FitTrack Pro. All rights reserved.
+                    </footer>
+                </div>
             </div>
 
             {/* Global Modal - Will render if modalContent is set */}

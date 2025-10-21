@@ -81,7 +81,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4, duration: 0.5 }}
                     >
-                        🚀 Start Your Fitness Journey - Log In / Register
+                        🚀 Start Your Fitness Journey
                     </motion.button>
                 </div>
 
@@ -182,7 +182,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                 transition={{ duration: 0.3 }}
                 className="space-y-8"
             >
-                <h1 className="text-3xl font-bold text-accent-green">Admin Dashboard 👑</h1>
+                <h1 className="text-3xl font-bold text-accent-green">Admin Panel 👑</h1>
                 <p className="text-text-muted">Welcome back, {activeUserName || 'Admin'}. You have oversight over **{users.length}** registered users.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -223,7 +223,8 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             transition={{ duration: 0.3 }}
             className="space-y-8"
         >
-            <h1 className="text-xl font-semibold text-text-dark">Hi {activeUserName || 'User'}! Here is your progress snapshot.</h1>
+            <h1 className="text-3xl font-bold text-text-dark">Hello, {activeUserName || 'User'}!</h1>
+            <p className="text-xl text-text-muted">Here is your daily fitness overview.</p>
             
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

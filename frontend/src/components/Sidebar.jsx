@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext"; // NEW IMPORT
 
 const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
     // FIX: Get userRole and isAdmin from context
-    const { userRole, isAdmin } = useAuth(); 
+    const { userRole, isAdmin } = useAuth();
 
     const allUserItems = [
         { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -16,20 +16,20 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
         { id: "addMeal", label: "Log Meal", icon: "🍽️" },
         { id: "updateBMI", label: "Update Metrics", icon: "⚖️" },
     ];
-    
+
     const adminItems = [
         { id: "dashboard", label: "Admin Dashboard", icon: "👑" },
         { id: "users", label: "Manage Users", icon: "👥" },
         { id: "addUser", label: "Register New User", icon: "➕" },
         // Admin tasks like monitoring can be added here
     ];
-    
+
     const unauthenticatedItems = [
         { id: "dashboard", label: "Home", icon: "🏠" },
         { id: "login", label: "Login", icon: "🔑" },
         { id: "register", label: "Register", icon: "📝" },
     ];
-    
+
     // Determine the set of links to show based on auth status and role
     let filteredNavItems = [];
     if (!authToken) {
@@ -39,11 +39,14 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
     } else {
         filteredNavItems = allUserItems;
     }
-    
+
     // Fallback to allUserItems if role is not set yet (during loading)
     if (authToken && !userRole) {
-         filteredNavItems = allUserItems;
+        filteredNavItems = allUserItems;
     }
+
+    // Determine the height of the top area for spacing
+    const topSpacingClass = authToken ? 'h-[72px]' : 'mb-8'; // Match header height (Header.jsx py-4 means height ~72px)
 
     return (
         <motion.div
@@ -53,14 +56,12 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
             exit={{ x: -256 }}
             transition={{ type: "spring", stiffness: 100, damping: 20 }}
         >
-            {/* Logo/Header */}
-            <div className="mb-8 p-2">
-                <h1 className="text-3xl font-bold text-primary-blue flex items-center">
-                    <span className="text-accent-green mr-2 text-4xl">💚</span> FitTrack Pro
-                </h1>
-                {/* NEW: Display Role */}
-                {userRole && (
-                     <p className="text-xs font-medium text-text-muted mt-1 px-1">Role: <span className="font-semibold text-primary-blue">{userRole}</span></p>
+            {/* Logo/Header - MODIFIED: Removed branding/logo if authenticated to prevent overlap */}
+            {/* Added spacing div to push links down past the fixed global header */}
+            <div className={`mb-4 p-2 ${topSpacingClass} flex items-end justify-start`}>
+                {/* Only show Role if logged in */}
+                {authToken && userRole && (
+                    <p className="text-xs font-medium text-text-muted px-1"></p>
                 )}
             </div>
 
@@ -70,8 +71,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
                     <motion.button
                         key={item.id}
                         className={`flex items-center w-full px-4 py-3 rounded-xl font-medium transition-all duration-200 text-left 
-                            ${activeTab === item.id 
-                                ? 'bg-primary-blue text-white shadow-lg' 
+                            ${activeTab === item.id
+                                ? 'bg-primary-blue text-white shadow-lg'
                                 : 'text-text-dark hover:bg-gray-100'}`}
                         onClick={() => setActiveTab(item.id)}
                         whileHover={{ scale: 1.02 }}
