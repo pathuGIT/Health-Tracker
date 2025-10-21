@@ -1,112 +1,265 @@
-// src/App.js
-import { useEffect, useState } from "react";
-import axios from "axios";
+// frontend/src/App.js
+import { useEffect, useState, useCallback } from "react";
+import { getAllUsers } from "./services/UserService";
+import { getExercisesByUser } from "./services/ExerciseService";
+import { getMealsByUser } from "./services/MealService";
 import Dashboard from "./components/Dashboard";
 import AddUser from "./components/AddUser";
 import AddExercise from "./components/AddExercise";
 import AddMeal from "./components/AddMeal";
 import UpdateBMI from "./components/UpdateBMI";
-import Navigation from "./components/Navigation";
-import Users from "./pages/Users";
+import Users from "./components/Users";
+import Exercises from './components/Exercises'; 
+import MealsPage from "./pages/Meals"; 
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile"; 
+import Sidebar from "./components/Sidebar"; 
+import Modal from "./components/Modal"; 
+import Header from "./components/Header"; // NEW IMPORT
+import { useAuth } from "./context/AuthContext"; 
+
 
 function App() {
+    // FIX: Get isAdmin flag
+    const { userId, authToken, handleLogout, isAuthLoading, isAdmin } = useAuth();
+    
     const [users, setUsers] = useState([]);
     const [exercises, setExercises] = useState([]);
     const [meals, setMeals] = useState([]);
-    const [activeTab, setActiveTab] = useState("dashboard");
-
-    useEffect(() => {
-        fetchUsers();
-        fetchExercises();
-        fetchMeals();
+    const [activeTab, setActiveTab] = useState("dashboard"); 
+    
+    const [modalContent, setModalContent] = useState(null); 
+    
+    // --- Data Fetching Functions ---
+    const fetchUsers = useCallback(() => {
+        // Only fetch users if Admin is logged in, or if we need a demo user list (but dashboard mostly uses user's data)
+        // Since Users.jsx fetches all users, we only need to call this if we are actively viewing the Users page.
+        // Keeping this for Dashboard display in unauthenticated state for demo/legacy.
+        getAllUsers()
+            .then(res => setUsers(res.data))
+            .catch(err => console.error("Error fetching all users:", err));
     }, []);
 
-    const fetchUsers = () => {
-        axios.get("http://localhost:8080/api/users")
-            .then(res => setUsers(res.data))
-            .catch(err => console.error("Error fetching users:", err));
-    };
+    const fetchExercises = useCallback(() => {
+        if (!userId) { 
+            setExercises([]);
+            return;
+        }
+        getExercisesByUser(userId) 
+            .then(res => {
+                setExercises(res.data.data?.exercises || res.data.data || res.data.exercises || res.data || []);
+            })
+            .catch(err => console.error("Error fetching exercises:", err));
+    }, [userId]); 
 
-    const fetchExercises = () => {
-        axios.get("http://localhost:8080/api/exercise")
-            .then(res => setExercises(res.data))
-            .catch(err => console.error("Error fetching Exercises.jsx:", err));
-    };
-
-    const fetchMeals = () => {
-        axios.get("http://localhost:8080/api/meal")
-            .then(res => setMeals(res.data))
+    const fetchMeals = useCallback(() => {
+        if (!userId) { 
+            setMeals([]);
+            return;
+        }
+        getMealsByUser(userId) 
+            .then(res => {
+                setMeals(res.data.data?.meals || res.data.data || res.data.meals || res.data || []);
+            })
             .catch(err => console.error("Error fetching meals:", err));
+    }, [userId]); 
+
+    const fetchData = useCallback(() => {
+        
+        if (isAuthLoading) {
+            setExercises([]);
+            setMeals([]);
+            return;
+        }
+        
+        // Admins and Users need Dashboard data (but Admin Dashboard might show different things)
+        if (isAdmin || activeTab === "users") {
+            fetchUsers(); 
+        }
+
+        if (userId && !isAdmin) { // Fetch user-specific data only for non-admin users
+            fetchExercises();
+            fetchMeals();
+        } else {
+            // Clear user-specific data for Admin/Unauthenticated
+            setExercises([]);
+            setMeals([]);
+        }
+    }, [userId, isAuthLoading, isAdmin, activeTab, fetchUsers, fetchExercises, fetchMeals]);
+
+    useEffect(() => {
+        // Set initial tab based on auth state
+        if (authToken && (activeTab === "login" || activeTab === "register")) {
+            // Default authenticated view
+            setActiveTab("dashboard");
+        } else if (!authToken && (activeTab !== "dashboard" && activeTab !== "login" && activeTab !== "register")) {
+            // Redirect unauthorized access to dashboard/login prompt
+            // Now handled by the outer shell, redirecting to the main dashboard.
+            setActiveTab("dashboard");
+        }
+        fetchData();
+    }, [authToken, fetchData, activeTab]);
+
+    // --- Modal Handlers ---
+    const openModal = (content) => {
+        setModalContent(content);
     };
 
+    const closeModal = () => {
+        setModalContent(null);
+    };
+
+    const handleLoginSuccess = () => { 
+        setActiveTab("dashboard");
+        closeModal(); 
+    };
+
+    const handleTabChange = (tabId) => {
+        // Check if the user is authorized for the tab/modal
+        const isUserSpecific = ["profile", "exercises", "meals", "addExercise", "addMeal", "updateBMI"].includes(tabId);
+        const isRestrictedToAdmin = ["users", "addUser"].includes(tabId);
+
+        if (isUserSpecific && !userId) {
+            // If trying to access user page while logged out, navigate to login page/modal.
+            return handleTabChange("login");
+        }
+        
+        // This is a minimal implementation, proper role-based authorization would be better
+        if (isRestrictedToAdmin && !isAdmin) {
+             // If a regular user somehow clicks an admin link (not visible in the sidebar, but for safety)
+             setActiveTab("dashboard");
+             return alert("Access Denied: Admin privileges required.");
+        }
+
+
+        // Logic for showing forms in a modal
+        switch(tabId) {
+            case "addUser":
+                openModal(<AddUser onUserAdded={() => { fetchUsers(); closeModal(); }} />);
+                break;
+            case "addExercise":
+                openModal(<AddExercise onExerciseAdded={() => { fetchExercises(); closeModal(); }} />);
+                break;
+            case "addMeal":
+                openModal(<AddMeal onMealAdded={() => { fetchMeals(); closeModal(); }} />);
+                break;
+            case "updateBMI":
+                openModal(<UpdateBMI closeModal={() => { 
+                    fetchData(); // Re-fetch user data to update dashboard/profile
+                    closeModal(); 
+                }} />); 
+                break;
+            case "login":
+                openModal(<Login onLoginSuccess={handleLoginSuccess} switchToRegister={() => { closeModal(); openModal(<Register switchToLogin={() => { closeModal(); handleTabChange("login"); }} />); }} />);
+                break;
+            case "register":
+                openModal(<Register switchToLogin={() => { closeModal(); openModal(<Login onLoginSuccess={handleLoginSuccess} switchToRegister={() => { closeModal(); openModal(null); }} />) }} />);
+                break;
+            default:
+                setActiveTab(tabId);
+        }
+    };
+    
+    // --- Content Renderer ---
     const renderContent = () => {
+        // For unauthenticated users, only show the login prompt on the dashboard
+        if (!authToken && activeTab !== "dashboard" && activeTab !== "login" && activeTab !== "register") {
+            // This is hit if the user somehow navigates to a protected page (e.g., /profile) while logged out.
+            // Now handled by the outer shell, redirecting to the main dashboard.
+            setActiveTab("dashboard");
+            return null; // Will trigger re-render to Dashboard
+        }
+
         switch(activeTab) {
             case "dashboard":
-                return <Dashboard users={users} exercises={exercises} meals={meals} />;
+            case "login":
+            case "register":
+                // Dashboard handles its own login prompt presentation. We use the onLoginClick to trigger modals via handleTabChange.
+                return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={handleTabChange} />;
             case "users":
-                return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                        <h2 className="text-2xl font-bold mb-6 text-gray-800">Users</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {users.map(user => (
-                                <div key={user.userId} className="bg-blue-50 p-4 rounded-lg">
-                                    <h3 className="font-semibold text-lg">{user.name}</h3>
-                                    <p className="text-gray-600">{user.email}</p>
-                                    <p className="text-sm mt-2">Age: {user.age}, Weight: {user.weight}, Height: {user.height}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                );
+                return <Users />; 
             case "exercises":
-                return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                        <h2 className="text-2xl font-bold mb-6 text-gray-800">Exercises</h2>
-                        <div className="space-y-4">
-                            {exercises.map(exercise => (
-                                <div key={exercise.exerciseId} className="bg-green-50 p-4 rounded-lg">
-                                    <h3 className="font-semibold">{exercise.exerciseName}</h3>
-                                    <p>User ID: {exercise.userId} - Duration: {exercise.durationMinutes} mins</p>
-                                    <p>Calories burned: {exercise.caloriesBurned}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                );
+                // If admin views exercises, they get a blank page. Restricting to non-admin or forcing user to profile tab
+                if (isAdmin) return <p className="card p-5">Admin view of exercises is not fully implemented. Please view individual user data.</p>;
+                return <Exercises />;
             case "meals":
-                return (
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                        <h2 className="text-2xl font-bold mb-6 text-gray-800">Meals</h2>
-                        <div className="space-y-4">
-                            {meals.map(meal => (
-                                <div key={meal.mealId} className="bg-yellow-50 p-4 rounded-lg">
-                                    <h3 className="font-semibold">{meal.mealName}</h3>
-                                    <p>User ID: {meal.userId}</p>
-                                    <p>Calories: {meal.caloriesConsumed}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                );
-            case "addUser":
-                return <AddUser onUserAdded={fetchUsers} />;
-            case "addExercise":
-                return <AddExercise onExerciseAdded={fetchExercises} />;
-            case "addMeal":
-                return <AddMeal onMealAdded={fetchMeals} />;
-            case "updateBMI":
-                return <UpdateBMI />;
+                if (isAdmin) return <p className="card p-5">Admin view of meals is not fully implemented. Please view individual user data.</p>;
+                return <MealsPage />; 
+            case "profile":
+                if (isAdmin) return <p className="card p-5">Admin does not have a user profile page. Switch to Dashboard or Users tab.</p>;
+                return <Profile />;
             default:
-                return <Dashboard users={users} exercises={exercises} meals={meals} />;
+                return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={handleTabChange} />;
         }
     };
 
+    // Determine modal title dynamically
+    let modalTitle = "";
+    if (modalContent) {
+        if (modalContent.type === AddUser) modalTitle = "Register New User";
+        else if (modalContent.type === AddExercise) modalTitle = "Log New Workout";
+        else if (modalContent.type === AddMeal) modalTitle = "Log New Meal";
+        else if (modalContent.type === UpdateBMI) modalTitle = "Update Health Metrics";
+        else if (modalContent.type === Login) modalTitle = "User Login";
+        else if (modalContent.type === Register) modalTitle = "Create Account";
+        else modalTitle = "Form";
+    }
+
+    // Determine padding to account for fixed header
+    const mainContentPaddingTop = 'pt-[80px]'; // Adding approx. 80px padding to top for the fixed header
+    
+    // Logic to determine main content left margin based on sidebar visibility
+    const mainContentMarginLeft = authToken ? 'ml-64' : 'ml-0';
+
+
     return (
-        <div className="min-h-screen bg-gray-100">
-            <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-            <div className="container mx-auto px-4 py-8">
-                {renderContent()}
+        <div className="min-h-screen bg-background-light flex flex-col">
+            {/* NEW: Global Header (always visible) */}
+            <Header onTabChange={handleTabChange} activeTab={activeTab} />
+
+            <div className="flex flex-grow">
+                {/* Left Sidebar Navigation - Only show if authenticated */}
+                {authToken && (
+                    <Sidebar 
+                        activeTab={activeTab} 
+                        setActiveTab={handleTabChange}
+                        onLogout={handleLogout}
+                        authToken={authToken}
+                    />
+                )}
+
+                {/* Main Content Area - Conditional Margin and Padding */}
+                <div className={`flex-grow p-8 ${mainContentPaddingTop} ${mainContentMarginLeft}`}>
+                    
+                    {/* Header for main content area (Moved to new Header.jsx for unauthenticated view) */}
+                    {authToken && (
+                        <header className="mb-8 flex justify-between items-center">
+                            <h2 className="text-3xl font-bold text-text-dark capitalize">
+                                {/* Display a nicer header based on the active tab */}
+                                {activeTab === "meals" ? "Nutrition Log" : 
+                                 activeTab === "exercises" ? "Workout Log" : 
+                                 activeTab.replace(/([A-Z])/g, ' $1').trim()}
+                            </h2>
+                        </header>
+                    )}
+
+                    {/* Content */}
+                    <main className="min-h-[70vh]">
+                        {renderContent()}
+                    </main>
+
+                    {/* Footer - Minimalist */}
+                    <footer className="mt-12 text-center text-text-muted text-sm">
+                        &copy; {new Date().getFullYear()} FitTrack Pro. All rights reserved.
+                    </footer>
+                </div>
             </div>
+
+            {/* Global Modal - Will render if modalContent is set */}
+            <Modal isOpen={!!modalContent} onClose={closeModal} title={modalTitle}>
+                {modalContent}
+            </Modal>
         </div>
     );
 }

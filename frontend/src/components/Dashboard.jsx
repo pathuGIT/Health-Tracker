@@ -1,238 +1,311 @@
 // src/components/Dashboard.jsx
 import React from "react";
-import "../index.css";
+import { motion } from "framer-motion";
+import BMIChart from "./charts/BMIChart";
+import CaloriesChart from "./charts/CaloriesChart";
+import { useAuth } from "../context/AuthContext"; 
 
-const Dashboard = ({ users, exercises, meals }) => {
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-            {/* Header */}
-            <header className="bg-white/10 backdrop-blur-md border-b border-white/20 shadow-xl">
-                <div className="container mx-auto px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
-                                <span className="text-white font-bold text-xl">F</span>
-                            </div>
-                            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                                FitTrack Pro
-                            </h1>
-                        </div>
-                        <nav className="hidden md:flex space-x-8">
-                            <a href="#" className="text-white/80 hover:text-white font-medium transition-colors backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/10">Dashboard</a>
-                            <a href="#" className="text-white/80 hover:text-white font-medium transition-colors backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/10">Workouts</a>
-                            <a href="#" className="text-white/80 hover:text-white font-medium transition-colors backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/10">Nutrition</a>
-                            <a href="#" className="text-white/80 hover:text-white font-medium transition-colors backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/10">Progress</a>
-                        </nav>
-                        <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold shadow-lg">
-                                {users.length > 0 ? users[0].name?.charAt(0) || 'U' : 'A'}
-                            </div>
-                        </div>
-                    </div>
+// Helper function to calculate total calories (for simplicity)
+const calculateTotalCalories = (items, key) => items.reduce((acc, item) => acc + (item[key] || 0), 0);
+
+const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
+    // FIX: Get isAdmin flag from context
+    const { user, isAdmin } = useAuth();
+    
+    // Extract user details from context or default to null
+    const activeUserName = user?.name;
+    const activeUserWeight = user?.weight;
+    const activeUserHeight = user?.height;
+
+    // --- Aggregated Stats (User Only) ---
+    const totalExercises = exercises.length;
+    const totalMeals = meals.length;
+    const totalCaloriesBurned = calculateTotalCalories(exercises, 'caloriesBurned');
+    const totalCaloriesConsumed = calculateTotalCalories(meals, 'caloriesConsumed');
+    const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
+
+    // Calculate BMI
+    const demoBMI = (activeUserWeight && activeUserHeight > 0) 
+        ? (activeUserWeight / ((activeUserHeight / 100) ** 2)).toFixed(1) 
+        : 'N/A';
+        
+    const demoWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
+
+    const StatCard = ({ title, value, icon, color }) => (
+        <motion.div
+            className="card text-center flex flex-col justify-center items-center p-4"
+            whileHover={{ y: -5 }}
+            transition={{ type: "spring", stiffness: 300, damping: 10 }}
+        >
+            <div className={`text-4xl p-3 rounded-full bg-opacity-10 mb-3`} style={{ backgroundColor: color, color: 'white' }}>
+                <span style={{ filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.1))' }}>{icon}</span>
+            </div>
+            <p className="text-sm font-medium text-text-muted">{title}</p>
+            <h3 className="text-2xl md:text-3xl font-extrabold text-text-dark mt-1">{value}</h3>
+        </motion.div>
+    );
+
+    // ENHANCED: Attractive Pre-Login Dashboard
+    if (showLoginPrompt) {
+        return (
+            <motion.div 
+                className="space-y-12"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.7 }}
+            >
+                {/* Hero Section */}
+                <div className="text-center max-w-4xl mx-auto pt-8">
+                    <motion.h1 
+                        className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent-green mb-6"
+                        initial={{ y: -30, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.6 }}
+                    >
+                        Transform Your Fitness Journey
+                    </motion.h1>
+                    <motion.p 
+                        className="text-xl text-text-muted mb-10 max-w-2xl mx-auto leading-relaxed"
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2, duration: 0.6 }}
+                    >
+                        Track workouts, monitor nutrition, and achieve your health goals with our comprehensive fitness platform.
+                    </motion.p>
+                    <motion.button
+                        className="btn-primary text-lg px-8 py-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                        onClick={onLoginClick}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4, duration: 0.5 }}
+                    >
+                        🚀 Start Your Fitness Journey
+                    </motion.button>
                 </div>
-            </header>
 
-            {/* Main Dashboard Content */}
-            <main className="container mx-auto px-6 py-8">
-                <div className="space-y-8">
-                    {/* Hero Section */}
-                    <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-xl p-8 text-white border border-white/20">
-                        <div className="flex flex-col md:flex-row items-center justify-between">
-                            <div className="mb-6 md:mb-0">
-                                <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
-                                    Elevate Your Fitness Journey!
-                                </h1>
-                                <p className="text-white/80 text-lg">Transform your body, transform your life with cutting-edge tracking</p>
-                            </div>
-                            <div className="w-32 h-32 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20">
-                                <span className="text-4xl">💎</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-xl p-6 hover:scale-105 transition-transform duration-300 border border-white/20 hover:bg-white/15">
-                            <div className="flex items-center">
-                                <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 backdrop-blur-sm border border-white/20 text-white mr-4">
-                                    <span className="text-2xl">👥</span>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-white/80">Active Users</h3>
-                                    <p className="text-3xl font-bold text-white">{users.length}</p>
-                                    <p className="text-sm text-green-400 mt-1">+12% this month</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-xl p-6 hover:scale-105 transition-transform duration-300 border border-white/20 hover:bg-white/15">
-                            <div className="flex items-center">
-                                <div className="p-4 rounded-2xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm border border-white/20 text-white mr-4">
-                                    <span className="text-2xl">💪</span>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-white/80">Exercises Logged</h3>
-                                    <p className="text-3xl font-bold text-white">{exercises.length}</p>
-                                    <p className="text-sm text-green-400 mt-1">+8% from last week</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-xl p-6 hover:scale-105 transition-transform duration-300 border border-white/20 hover:bg-white/15">
-                            <div className="flex items-center">
-                                <div className="p-4 rounded-2xl bg-gradient-to-r from-yellow-500/20 to-amber-500/20 backdrop-blur-sm border border-white/20 text-white mr-4">
-                                    <span className="text-2xl">🍎</span>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-white/80">Meals Tracked</h3>
-                                    <p className="text-3xl font-bold text-white">{meals.length}</p>
-                                    <p className="text-sm text-green-400 mt-1">+15% from last week</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Recent Activities */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-white/20">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-white">Recent Exercises</h3>
-                                <span className="text-purple-300 bg-purple-500/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">
-                                    Active
-                                </span>
-                            </div>
-                            <div className="space-y-4">
-                                {exercises.slice(0, 4).map(exercise => (
-                                    <div key={exercise.exerciseId} className="flex items-center p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-xl border border-white/20 hover:scale-102 transition-transform duration-200 backdrop-blur-sm">
-                                        <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500/30 to-blue-500/30 backdrop-blur-sm border border-white/20 text-white mr-4 shadow-lg">
-                                            <span className="text-lg">💪</span>
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-semibold text-white">{exercise.exerciseName}</p>
-                                                    <p className="text-sm text-white/60">User {exercise.userId}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-purple-300">{exercise.durationMinutes} min</p>
-                                                    <p className="text-sm text-red-300 font-medium">{exercise.caloriesBurned} cal</p>
-                                                </div>
-                                            </div>
-                                            <div className="w-full bg-white/20 rounded-full h-2 mt-2">
-                                                <div
-                                                    className="bg-gradient-to-r from-purple-400 to-blue-400 h-2 rounded-full backdrop-blur-sm"
-                                                    style={{ width: `${Math.min((exercise.durationMinutes / 60) * 100, 100)}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-white/20">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-white">Recent Meals</h3>
-                                <span className="text-green-300 bg-green-500/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium border border-green-500/30">
-                                    Healthy
-                                </span>
-                            </div>
-                            <div className="space-y-4">
-                                {meals.slice(0, 4).map(meal => (
-                                    <div key={meal.mealId} className="flex items-center p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-xl border border-white/20 hover:scale-102 transition-transform duration-200 backdrop-blur-sm">
-                                        <div className="p-3 rounded-xl bg-gradient-to-r from-green-500/30 to-emerald-500/30 backdrop-blur-sm border border-white/20 text-white mr-4 shadow-lg">
-                                            <span className="text-lg">🍎</span>
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-semibold text-white">{meal.mealName}</p>
-                                                    <p className="text-sm text-white/60">User {meal.userId}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-green-300">{meal.caloriesConsumed} cal</p>
-                                                    <p className="text-sm text-white/60">Tracked</p>
-                                                </div>
-                                            </div>
-                                            <div className="w-full bg-white/20 rounded-full h-2 mt-2">
-                                                <div
-                                                    className="bg-gradient-to-r from-green-400 to-emerald-400 h-2 rounded-full backdrop-blur-sm"
-                                                    style={{ width: `${Math.min((meal.caloriesConsumed / 800) * 100, 100)}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Motivation Section */}
-                    <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-md rounded-2xl shadow-xl p-8 text-white text-center border border-white/20">
-                        <h3 className="text-2xl font-bold mb-4">Unleash Your Potential! 🚀</h3>
-                        <p className="text-white/80 text-lg">
-                            {exercises.length > 0
-                                ? `Amazing! ${exercises.length} exercises conquered and ${meals.length} meals optimized this week!`
-                                : 'Your transformation starts now - embrace the journey!'}
+                {/* Features Grid */}
+                <motion.div 
+                    className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16"
+                    initial={{ y: 40, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6, duration: 0.7 }}
+                >
+                    {/* Feature 1 */}
+                    <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-primary-blue">
+                        <div className="text-5xl mb-4">📊</div>
+                        <h3 className="text-2xl font-bold text-text-dark mb-4">Advanced Analytics</h3>
+                        <p className="text-text-muted">
+                            Track BMI, calories, and progress with beautiful charts and insights to optimize your fitness strategy.
                         </p>
                     </div>
-                </div>
-            </main>
 
-            {/* Footer */}
-            <footer className="bg-black/40 backdrop-blur-md border-t border-white/20 py-12 mt-12">
-                <div className="container mx-auto px-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        <div className="col-span-1 md:col-span-2">
-                            <div className="flex items-center space-x-3 mb-4">
-                                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
-                                    <span className="text-white font-bold">F</span>
-                                </div>
-                                <span className="text-xl font-bold text-white">FitTrack Pro</span>
-                            </div>
-                            <p className="text-white/60 mb-4 max-w-md">
-                                Your premium fitness companion. Experience next-level tracking with glass-morphism design and advanced analytics.
-                            </p>
-                            <div className="flex space-x-4">
-                                <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-purple-500/30 transition-colors cursor-pointer border border-white/20">
-                                    <span className="text-white">📘</span>
-                                </div>
-                                <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-blue-400/30 transition-colors cursor-pointer border border-white/20">
-                                    <span className="text-white">🐦</span>
-                                </div>
-                                <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-pink-500/30 transition-colors cursor-pointer border border-white/20">
-                                    <span className="text-white">📷</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="font-semibold text-lg mb-4 text-white">Quick Links</h4>
-                            <ul className="space-y-2 text-white/60">
-                                <li><a href="#" className="hover:text-white transition-colors">Dashboard</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Workouts</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Nutrition</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Progress</a></li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h4 className="font-semibold text-lg mb-4 text-white">Support</h4>
-                            <ul className="space-y-2 text-white/60">
-                                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
-                            </ul>
-                        </div>
+                    {/* Feature 2 */}
+                    <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-green">
+                        <div className="text-5xl mb-4">💪</div>
+                        <h3 className="text-2xl font-bold text-text-dark mb-4">Workout Tracking</h3>
+                        <p className="text-text-muted">
+                            Log exercises, monitor calories burned, and build personalized workout routines that deliver results.
+                        </p>
                     </div>
 
-                    <div className="border-t border-white/20 mt-8 pt-8 text-center text-white/60">
-                        <p>&copy; 2024 FitTrack Pro. All rights reserved. Crafted with 💎 for modern fitness enthusiasts.</p>
+                    {/* Feature 3 */}
+                    <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-red">
+                        <div className="text-5xl mb-4">🍎</div>
+                        <h3 className="text-2xl font-bold text-text-dark mb-4">Nutrition Monitoring</h3>
+                        <p className="text-text-muted">
+                            Track meals, count calories, and maintain perfect balance between nutrition and exercise goals.
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* Demo Preview Section */}
+                <motion.div 
+                    className="card p-8 bg-gradient-to-br from-blue-50 to-green-50 border-2 border-primary-blue border-opacity-20"
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.8, duration: 0.6 }}
+                >
+                    <h2 className="text-3xl font-bold text-center text-text-dark mb-6">See What Awaits You</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">⚖️</div>
+                            <p className="font-semibold text-text-dark">BMI Tracking</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">📈</div>
+                            <p className="font-semibold text-text-dark">Progress Charts</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">🔥</div>
+                            <p className="font-semibold text-text-dark">Calorie Analysis</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 text-center shadow-md">
+                            <div className="text-2xl mb-2">🎯</div>
+                            <p className="font-semibold text-text-dark">Goal Setting</p>
+                        </div>
+                    </div>
+                    
+                    <div className="text-center">
+                        <button
+                            className="btn-primary px-8 py-3 rounded-full font-semibold"
+                            onClick={onLoginClick}
+                        >
+                            🔑 Unlock All Features - Join Now!
+                        </button>
+                    </div>
+                </motion.div>
+
+                {/* Testimonial/Stats Section */}
+                <motion.div 
+                    className="text-center py-8"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1, duration: 0.6 }}
+                >
+                    <p className="text-text-muted italic text-lg">
+                        "FitTrack Pro helped me lose 15kg and maintain my ideal weight for over a year!"
+                    </p>
+                    <p className="text-text-dark font-semibold mt-2">- Sarah M., FitTrack Pro User</p>
+                </motion.div>
+            </motion.div>
+        );
+    }
+    
+    // --- NEW: ADMIN DASHBOARD VIEW ---
+    if (isAdmin) {
+        return (
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-8"
+            >
+                <h1 className="text-3xl font-bold text-accent-green">Admin Panel 👑</h1>
+                <p className="text-text-muted">Welcome back, {activeUserName || 'Admin'}. You have oversight over **{users.length}** registered users.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <StatCard title="Total Registered Users" value={users.length} icon="👥" color="#4F46E5" />
+                    <StatCard title="Actions Available" value="Manage Users" icon="🛠️" color="#F59E0B" />
+                    <StatCard title="Add New User" value="Register User" icon="➕" color="#10B981" />
+                </div>
+
+                <motion.div 
+                    className="card p-6"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <h2 className="text-xl font-semibold text-text-dark mb-4">Quick Links</h2>
+                    <ul className="space-y-2">
+                        <li>
+                            <button onClick={() => onLoginClick("users")} className="text-primary-blue hover:underline">
+                                View All User Profiles
+                            </button>
+                        </li>
+                        <li>
+                             <button onClick={() => onLoginClick("addUser")} className="text-primary-blue hover:underline">
+                                Manually Register a New User
+                            </button>
+                        </li>
+                    </ul>
+                </motion.div>
+            </motion.div>
+        );
+    }
+    
+    // --- EXISTING: USER DASHBOARD VIEW ---
+    return (
+        <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-8"
+        >
+            <h1 className="text-3xl font-bold text-text-dark">Hello, {activeUserName || 'User'}!</h1>
+            <p className="text-xl text-text-muted">Here is your daily fitness overview.</p>
+            
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <StatCard title="Current BMI" value={demoBMI} icon="⚖️" color="#4F46E5" />
+                <StatCard title="Current Weight" value={demoWeight} icon="🏋️" color="#10B981" />
+                <StatCard title="Workouts Logged" value={totalExercises} icon="💪" color="#F59E0B" />
+                <StatCard title="Meals Tracked" value={totalMeals} icon="🍎" color="#EF4444" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {/* Net Calories Card */}
+                 <motion.div 
+                    className={`card col-span-1 p-6 text-center 
+                        ${netCalories > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}
+                    whileHover={{ y: -5 }}
+                >
+                    <h3 className="text-lg font-semibold text-text-dark mb-2">Net Calories (Consumed - Burned)</h3>
+                    <p className={`text-4xl font-extrabold ${netCalories > 0 ? 'text-accent-red' : 'text-accent-green'}`}>
+                        {netCalories.toFixed(0)} kcal
+                    </p>
+                    <p className="text-sm text-text-muted mt-2">
+                        {netCalories > 0 ? 'Calorie Surplus - Track more exercise!' : 'Calorie Deficit/Maintenance - Great job!'}
+                    </p>
+                </motion.div>
+
+                {/* Charts */}
+                <div className="card col-span-2">
+                    <h3 className="text-xl font-bold text-primary-blue mb-4">Weekly Health Trends</h3>
+                    <CaloriesChart />
+                </div>
+            </div>
+
+            {/* BMI History (Standalone Chart) */}
+            <div className="card">
+                <h3 className="text-xl font-bold text-primary-blue mb-4">BMI History</h3>
+                <BMIChart />
+            </div>
+
+            {/* Recent Activities - Minimalist view */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Exercises */}
+                <div className="card">
+                    <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Workouts 💪</h3>
+                    <div className="space-y-3">
+                        {exercises.slice(0, 3).map((exercise, index) => (
+                            <motion.div 
+                                key={index} 
+                                className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                            >
+                                <span className="font-medium text-text-dark">{exercise.exerciseName}</span>
+                                <span className="text-sm text-text-muted">{exercise.durationMinutes} min / {exercise.caloriesBurned} kcal</span>
+                            </motion.div>
+                        ))}
+                        {exercises.length === 0 && <p className="text-text-muted">No recent workouts logged.</p>}
                     </div>
                 </div>
-            </footer>
-        </div>
+
+                {/* Recent Meals */}
+                <div className="card">
+                    <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Meals 🍎</h3>
+                    <div className="space-y-3">
+                        {meals.slice(0, 3).map((meal, index) => (
+                            <motion.div 
+                                key={index} 
+                                className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                            >
+                                <span className="font-medium text-text-dark">{meal.mealName}</span>
+                                <span className="text-sm text-text-muted">{meal.caloriesConsumed} kcal</span>
+                            </motion.div>
+                        ))}
+                        {meals.length === 0 && <p className="text-text-muted">No recent meals logged.</p>}
+                    </div>
+                </div>
+            </div>
+        </motion.div>
     );
 };
 
