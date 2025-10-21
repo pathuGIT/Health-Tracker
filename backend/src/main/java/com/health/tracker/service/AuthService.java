@@ -109,7 +109,7 @@ public class AuthService {
         }
 
         // Return the authenticatedUserId in the TokenResponse
-        return new TokenResponse(activeToken, refreshToken, authenticatedUserId);
+        return new TokenResponse(activeToken, refreshToken, authenticatedUserId, role);
     }
 
     public Map<String, String> getRefreshToken(String refreshToken) {

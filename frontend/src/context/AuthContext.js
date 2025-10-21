@@ -78,14 +78,14 @@ export const AuthProvider = ({ children }) => {
             const tokenResponse = res.data?.data; 
             const token = tokenResponse?.accessToken;
             const authenticatedUserId = tokenResponse?.userId; 
+            const authenticatedUserRole = tokenResponse?.role;
 
-            if (token && authenticatedUserId) {
+            if (token && authenticatedUserId && authenticatedUserRole) {
                 localStorage.setItem('token', token);
                 localStorage.setItem('userId', authenticatedUserId.toString());
+                localStorage.setItem('userRole', authenticatedUserRole);
                 setAuthToken(token);
-                const mockRole = 'USER'; // Default to USER
-                localStorage.setItem('userRole', mockRole);
-                setUserRole(mockRole);
+                setUserRole(authenticatedUserRole);
                 await fetchUserProfile(authenticatedUserId); 
                 return true;
             } else {
