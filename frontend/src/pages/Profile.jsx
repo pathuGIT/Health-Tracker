@@ -2,68 +2,100 @@
 import { motion } from "framer-motion";
 import BMIChart from "../components/charts/BMIChart";
 import CaloriesChart from "../components/charts/CaloriesChart";
-import { useAuth } from "../context/AuthContext"; 
-import { useEffect, useState } from "react"; 
-import { getHealthProgress } from "../services/HealthMetricService";
+import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
+// Import the necessary service functions
+import { getHealthProgress, getCaloriesConsumedBurned } from "../services/HealthMetricService"; // Ensure both are imported
 
 const Profile = () => {
-    // FIX: Get user object and authentication states from context
-    const { user, userId, isAuthenticated, isAuthLoading } = useAuth(); // ADDED userId
-    
-    // --- NEW STATES FOR ADVANCED DATA ---
+    // Get user object and authentication states from context
+    const { user, userId, isAuthenticated, isAuthLoading } = useAuth();
+
+    // States for chart data and loading indicators
     const [bmiHistory, setBmiHistory] = useState([]);
-    const [calorieChartData, setCalorieChartData] = useState([]); // Kept for consistency
+    const [calorieChartData, setCalorieChartData] = useState([]); // State to hold aggregated data
     const [chartsLoading, setChartsLoading] = useState(true);
+    const [latestBmiCategory, setLatestBmiCategory] = useState('N/A'); // State for BMI Category
 
     // Fetch Advanced Data (Views)
     useEffect(() => {
+        // Fetch only when authenticated and userId is available
         if (isAuthenticated && userId) {
-            setChartsLoading(true);
+            setChartsLoading(true); // Start loading
+
             const fetchChartsData = async () => {
-                // 1. Fetch Health Metrics Progress (BMI History View)
+                // --- 1. Fetch BMI History and Category ---
                 try {
                     const progressRes = await getHealthProgress(userId);
-                    const progressData = progressRes.data.map(item => ({
-                        // Clean date for chart key
-                        date: new Date(item.date).toISOString().split('T')[0], 
-                        bmi: item.bmi,
-                    })).filter(item => item.bmi); // Only keep records with BMI
-                    setBmiHistory(progressData);
+                    // Assuming the data is sorted descending by date from the backend
+                    const sortedProgressData = progressRes.data; // Use the raw data
+
+                    if (sortedProgressData && sortedProgressData.length > 0) {
+                        // Get the category from the most recent entry (first item)
+                        setLatestBmiCategory(sortedProgressData[0].bmiCategory || 'N/A');
+
+                        // Prepare data for the BMI chart (date and bmi value)
+                        const chartBmiData = sortedProgressData.map(item => ({
+                            date: new Date(item.date).toISOString().split('T')[0], // Format date
+                            bmi: item.bmi,
+                        })).filter(item => item.bmi); // Filter out entries without BMI
+                        setBmiHistory(chartBmiData.reverse()); // Reverse for chronological chart order
+                    } else {
+                        setBmiHistory([]);
+                        setLatestBmiCategory('N/A');
+                    }
                 } catch (e) {
                     console.error("Failed to fetch BMI history:", e);
-                    setBmiHistory([]);
+                    setBmiHistory([]); // Reset on error
+                    setLatestBmiCategory('N/A');
                 }
-                
-                // 2. Mock/Placeholder Calorie Chart Data (Same as Dashboard for consistency)
-                const mockChartData = [
-                    { day: "Mon", consumed: 2200, burned: 1800, date: '2025-01-01' },
-                    { day: "Tue", consumed: 2000, burned: 1900, date: '2025-01-02' },
-                    { day: "Wed", consumed: 2500, burned: 2100, date: '2025-01-03' },
-                    { day: "Thu", consumed: 2300, burned: 2000, date: '2025-01-04' },
-                    { day: "Fri", consumed: 2400, burned: 2200, date: '2025-01-05' },
-                ].map(item => ({
-                    date: item.date, 
-                    consumed: item.consumed, 
-                    burned: item.burned 
-                }));
-                setCalorieChartData(mockChartData);
-                
-                setChartsLoading(false);
+
+                // --- 2. Fetch Raw Calorie Data and Aggregate ---
+                try {
+                    const calorieRes = await getCaloriesConsumedBurned(userId);
+                    const rawData = calorieRes.data;
+
+                    // Aggregate the raw data by date on the frontend
+                    const dailyTotals = {};
+                    rawData.forEach(item => {
+                        const dateStr = new Date(item.date).toISOString().split('T')[0];
+                        if (!dailyTotals[dateStr]) {
+                            dailyTotals[dateStr] = { date: dateStr, consumed: 0, burned: 0 };
+                        }
+                        dailyTotals[dateStr].consumed += item.calories_consumed || 0;
+                        dailyTotals[dateStr].burned += item.calories_burned || 0;
+                    });
+
+                    // Convert to array and sort
+                    const aggregatedChartData = Object.values(dailyTotals)
+                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                    setCalorieChartData(aggregatedChartData);
+
+                } catch (e) {
+                    console.error("Failed to fetch and aggregate calorie chart data:", e);
+                    setCalorieChartData([]);
+                }
+                // --- End of Calorie Data Logic ---
+
+                setChartsLoading(false); // Stop loading
             };
-            fetchChartsData();
+
+            fetchChartsData(); // Execute the data fetching
         } else {
-            // Reset state
+            // Reset state if not authenticated or userId is missing
             setBmiHistory([]);
             setCalorieChartData([]);
+            setLatestBmiCategory('N/A');
             setChartsLoading(false);
         }
-    }, [userId, isAuthenticated]); // Depend on relevant auth states
+    }, [userId, isAuthenticated]); // Dependencies for the effect
 
-    // FIX: Retrieve BMI directly from the user context object (fetched from backend)
+    // Retrieve BMI value from the user context (this might be slightly different from the latest history entry if profile isn't updated immediately)
     const calculatedBMI = user?.bmi ? parseFloat(user.bmi).toFixed(1) : 'N/A';
-        
+
     // Handle loading state
-    if (isAuthLoading || chartsLoading) { // Combined loading states
+    if (isAuthLoading || chartsLoading) {
         return (
             <div className="card text-center py-12">
                 <div className="flex flex-col items-center">
@@ -74,7 +106,7 @@ const Profile = () => {
         );
     }
 
-    // Handle unauthenticated state (should be caught by App.js, but good for robustness)
+    // Handle unauthenticated state
     if (!isAuthenticated || !user) {
         return (
             <div className="card text-center py-12">
@@ -83,11 +115,12 @@ const Profile = () => {
             </div>
         );
     }
-    
+
     const userName = user?.name || 'User';
 
+    // Render the profile page
     return (
-        <motion.div 
+        <motion.div
             className="max-w-4xl mx-auto space-y-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -97,53 +130,64 @@ const Profile = () => {
                 {userName}’s Profile 👤
             </h1>
 
-            {/* User Info Card - Using live user data */}
-            <motion.div 
-                className="card grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+            {/* User Info Card */}
+            <motion.div
+                className="card grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" // Changed to 5 columns for BMI Category
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.1 }}
             >
-                <div className="lg:col-span-4 mb-2">
+                <div className="lg:col-span-5 mb-2"> {/* Span all 5 columns */}
                     <h2 className="text-xl font-semibold text-text-dark border-b border-gray-100 pb-2">Personal Metrics</h2>
                 </div>
+                {/* Age */}
                 <div className="bg-gray-50 p-4 rounded-xl">
                     <p className="text-sm font-medium text-text-muted">Age</p>
                     <p className="text-xl font-bold text-text-dark">{user.age || 'N/A'}</p>
                 </div>
+                {/* Height */}
                 <div className="bg-gray-50 p-4 rounded-xl">
                     <p className="text-sm font-medium text-text-muted">Height</p>
                     <p className="text-xl font-bold text-text-dark">{user.height ? `${user.height} cm` : 'N/A'}</p>
                 </div>
+                {/* Weight */}
                 <div className="bg-gray-50 p-4 rounded-xl">
                     <p className="text-sm font-medium text-text-muted">Weight</p>
                     <p className="text-xl font-bold text-text-dark">{user.weight ? `${user.weight} kg` : 'N/A'}</p>
                 </div>
+                 {/* BMI Value */}
                 <div className="bg-primary-blue bg-opacity-10 p-4 rounded-xl border border-primary-blue/20">
                     <p className="text-sm font-medium text-primary-blue">Current BMI</p>
                     <p className="text-xl font-bold text-primary-blue">{calculatedBMI}</p>
+                </div>
+                 {/* BMI Category - NEW */}
+                 <div className="bg-green-100 p-4 rounded-xl border border-green-200">
+                    <p className="text-sm font-medium text-accent-green">Category</p>
+                    <p className="text-xl font-bold text-accent-green">{latestBmiCategory}</p>
                 </div>
             </motion.div>
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <motion.div 
+                {/* BMI History Chart */}
+                <motion.div
                     className="card p-6"
                     initial={{ x: -20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: 0.2 }}
                 >
                     <h2 className="text-xl font-semibold text-accent-green mb-4 border-b border-gray-100 pb-2">BMI History ⚖️</h2>
-                    <BMIChart data={bmiHistory} /> 
+                    <BMIChart data={bmiHistory} /> {/* Pass fetched BMI data */}
                 </motion.div>
-                <motion.div 
+                {/* Calories Chart */}
+                <motion.div
                     className="card p-6"
                     initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: 0.3 }}
                 >
                     <h2 className="text-xl font-semibold text-primary-blue mb-4 border-b border-gray-100 pb-2">Calories Summary 📈</h2>
-                    <CaloriesChart data={calorieChartData} /> 
+                    <CaloriesChart data={calorieChartData} /> {/* Pass aggregated calorie data */}
                 </motion.div>
             </div>
         </motion.div>
