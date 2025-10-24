@@ -14,6 +14,7 @@ import MealsPage from "./pages/Meals";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile"; 
+import AlertsPage from "./pages/AlertsPage"; // NEW IMPORT
 import Sidebar from "./components/Sidebar"; 
 import Modal from "./components/Modal"; 
 import Header from "./components/Header"; // NEW IMPORT
@@ -117,7 +118,7 @@ function App() {
 
     const handleTabChange = (tabId) => {
         // Check if the user is authorized for the tab/modal
-        const isUserSpecific = ["profile", "exercises", "meals", "addExercise", "addMeal", "updateBMI"].includes(tabId);
+        const isUserSpecific = ["profile", "exercises", "meals", "addExercise", "addMeal", "updateBMI", "alerts"].includes(tabId); // ADDED "alerts"
         const isRestrictedToAdmin = ["users", "addUser"].includes(tabId);
 
         if (isUserSpecific && !userId) {
@@ -189,6 +190,9 @@ function App() {
             case "profile":
                 if (isAdmin) return <p className="card p-5">Admin does not have a user profile page. Switch to Dashboard or Users tab.</p>;
                 return <Profile />;
+            case "alerts": // NEW CASE
+                if (isAdmin) return <p className="card p-5">Admin does not have alerts. Check individual user logs.</p>;
+                return <AlertsPage />;
             default:
                 return <Dashboard users={users} exercises={exercises} meals={meals} showLoginPrompt={!authToken} onLoginClick={handleTabChange} />;
         }
@@ -239,6 +243,7 @@ function App() {
                                 {/* Display a nicer header based on the active tab */}
                                 {activeTab === "meals" ? "Nutrition Log" : 
                                  activeTab === "exercises" ? "Workout Log" : 
+                                 activeTab === "alerts" ? "Notifications" : // NEW HEADER
                                  activeTab.replace(/([A-Z])/g, ' $1').trim()}
                             </h2>
                         </header>
