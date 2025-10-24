@@ -1,6 +1,7 @@
+// src/services/HealthMetricService.js
 import api from './Api';
 
-// Health Metric Endpoints (/api/health-metrics) 
+// Health Metric Endpoints (/api/health-metrics)
 
 /**
  * Records a new health metric (typically weight).
@@ -37,4 +38,13 @@ export const getLatestHealthMetric = (userId) => {
 export const getHealthProgress = (userId) => {
     // FIX: Change API path to /health-metrics/user/
     return api.get(`/health-metrics/user/${userId}/progress`);
+};
+
+/**
+ * Gets the user's calories consumed vs. burned data (uses MySQL VIEW: calories_consumed_burned_view).
+ * @param {number} userId
+ */
+export const getCaloriesConsumedBurned = (userId) => {
+    // Make sure the endpoint matches your backend HealthMetricController
+    return api.get(`/health-metrics/user/${userId}/calories_consumed_burned`);
 };
