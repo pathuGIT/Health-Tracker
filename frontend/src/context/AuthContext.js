@@ -1,25 +1,29 @@
+// frontend/src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { loginUser, logoutUser } from '../services/AuthService';
 import { getUserProfile } from '../services/UserService';
 
+// Create the Context
 const AuthContext = createContext();
 
+// Custom hook to use the AuthContext
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
+    // Initial state derived from localStorage token
     const [authToken, setAuthToken] = useState(localStorage.getItem('token'));
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(null); // Stores { id, name, email, ... }
     const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
     const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+    // Helper to get logout function, ensuring it's available in dependencies
     const handleLogout = useCallback(() => {
         logoutUser()
-            .catch(err => console.error("Logout API failed:", err))
+            .catch(err => console.error("Logout API failed (token likely invalid already):", err))
             .finally(() => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('userId');
                 localStorage.removeItem('userRole');
-                localStorage.removeItem('refreshToken'); // ✅ Don't forget to clear refresh token
                 setAuthToken(null);
                 setUser(null);
                 setUserRole(null);
@@ -41,11 +45,8 @@ export const AuthProvider = ({ children }) => {
                 weight: profileData.currentWeight
             });
         } catch (error) {
-            console.error("Failed to fetch user profile:", error);
-            // Only logout if it's an authentication error (403/401)
-            if (error.response?.status === 403 || error.response?.status === 401) {
-                handleLogout();
-            }
+            console.error("Failed to fetch user profile after login:", error);
+            handleLogout();
         } finally {
             setIsAuthLoading(false);
         }
@@ -57,7 +58,18 @@ export const AuthProvider = ({ children }) => {
             const storedUserRole = localStorage.getItem('userRole');
             if (storedUserId && storedUserRole) {
                 setUserRole(storedUserRole);
-                fetchUserProfile(parseInt(storedUserId));
+                // Only fetch profile for non-admin users
+                if (storedUserRole !== 'ADMIN') {
+                    fetchUserProfile(parseInt(storedUserId));
+                } else {
+                    // For admin, set basic user object without fetching profile
+                    setUser({
+                        id: parseInt(storedUserId),
+                        name: 'Admin',
+                        role: 'ADMIN'
+                    });
+                    setIsAuthLoading(false);
+                }
             } else {
                 setIsAuthLoading(false); 
                 handleLogout();
@@ -69,6 +81,7 @@ export const AuthProvider = ({ children }) => {
         }
     }, [authToken, fetchUserProfile, handleLogout]);
 
+
     const handleLogin = async (email, password) => {
         setIsAuthLoading(true);
         try {
@@ -77,21 +90,30 @@ export const AuthProvider = ({ children }) => {
             const token = tokenResponse?.accessToken;
             const authenticatedUserId = tokenResponse?.userId; 
             const authenticatedUserRole = tokenResponse?.role;
-            const refreshToken = tokenResponse?.refreshToken;
 
-            console.log("Login successful for user ID:", authenticatedUserId);
-
-            if (token && authenticatedUserId && authenticatedUserRole && refreshToken) {
+            if (token && authenticatedUserId && authenticatedUserRole) {
                 localStorage.setItem('token', token);
                 localStorage.setItem('userId', authenticatedUserId.toString());
                 localStorage.setItem('userRole', authenticatedUserRole);
-                localStorage.setItem('refreshToken', refreshToken);
                 setAuthToken(token);
                 setUserRole(authenticatedUserRole);
-                await fetchUserProfile(authenticatedUserId); 
+                
+                // Only fetch user profile for non-admin users
+                if (authenticatedUserRole !== 'ADMIN') {
+                    await fetchUserProfile(authenticatedUserId);
+                } else {
+                    // For admin users, set a basic user object without fetching profile
+                    setUser({
+                        id: authenticatedUserId,
+                        name: 'Admin',
+                        email: email,
+                        role: 'ADMIN'
+                    });
+                    setIsAuthLoading(false);
+                }
                 return true;
             } else {
-                throw new Error("Authentication succeeded but missing required data in response.");
+                throw new Error("Authentication succeeded but missing user ID or token in response.");
             }
         } catch (error) {
             setIsAuthLoading(false);
@@ -105,7 +127,7 @@ export const AuthProvider = ({ children }) => {
         userId: user ? user.id : null,
         isAuthenticated: !!authToken,
         isAuthLoading,
-        userRole,
+        userRole, // NEW: Expose user role
         isAdmin: userRole === 'ADMIN',
         handleLogin,
         handleLogout,
