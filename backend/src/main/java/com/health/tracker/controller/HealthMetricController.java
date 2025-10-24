@@ -42,4 +42,10 @@ public class HealthMetricController {
     public List<Map<String, Object>> getHealthProgress(@PathVariable int userId) {
         return healthMetricService.getHealthProgress(userId);
     }
+
+    @GetMapping("/user/{userId}/calories_consumed_burned")
+    @PreAuthorize("hasAuthority('USER') or hasAuthority('ADMIN')")
+    public List<Map<String, Object>> getCaloriesConsumedBurned(@PathVariable int userId) {
+        return healthMetricService.getCaloriesConsumedBurned(userId);
+    }
 }

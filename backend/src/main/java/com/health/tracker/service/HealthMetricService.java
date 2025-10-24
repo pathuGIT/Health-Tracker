@@ -6,7 +6,7 @@ import com.health.tracker.repository.UserRepository; // NEW IMPORT
 import com.health.tracker.entity.Users; // NEW IMPORT
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.time.LocalDate;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,5 +74,19 @@ public class HealthMetricService {
 
     private float calculateBMI(float weight, float heightInMeters) {
         return weight / (heightInMeters * heightInMeters);
+    }
+
+    public List<Map<String, Object>> getCaloriesConsumedBurned(int userId) {
+        List<Object[]> caloriesConsumedBurnedView = healthMetricRepository.getCaloriesConsumedBurnedView(userId);
+        List<Map<String, Object>> list = new ArrayList<>();
+
+        for (Object[] row : caloriesConsumedBurnedView) {
+            Map<String, Object> record = new HashMap<>();
+            record.put("userId", row[0]);
+            record.put("calories_consumed", row[1]);
+            record.put("calories_burned", row[2]);
+            list.add(record);
+        }
+        return list;
     }
 }

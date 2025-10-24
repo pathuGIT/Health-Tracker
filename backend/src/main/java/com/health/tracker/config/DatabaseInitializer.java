@@ -92,7 +92,11 @@ public class DatabaseInitializer implements CommandLineRunner {
                         "    END as bmi_category, " +
                         "    LAG(weight) OVER (PARTITION BY user_id ORDER BY date) as previous_weight, " +
                         "    weight - LAG(weight) OVER (PARTITION BY user_id ORDER BY date) as weight_change " +
-                        "FROM health_metric"
+                        "FROM health_metric",
+
+                // Calories Consumed and Burned View
+                "CREATE OR REPLACE VIEW calories_consumed_burned_view AS " +
+                        "select m.user_id, m.calories_consumed, e.calories_burned, e.date from meal m inner join exercise e on m.user_id = e.user_id"
         };
 
         for (String view : viewStatements) {
