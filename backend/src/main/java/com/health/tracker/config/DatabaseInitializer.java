@@ -27,9 +27,6 @@ public class DatabaseInitializer implements CommandLineRunner {
             // Execute triggers
             createTriggers();
 
-            //create index
-            createIndexes();
-
             System.out.println("Advanced database objects initialized successfully");
         } catch (Exception e) {
             System.err.println("Error initializing database objects: " + e.getMessage());
@@ -270,28 +267,39 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     private void createIndexes() {
-        System.out.println(" Creating indexes...");
+        System.out.println("🔧 ===== CREATING INDEXES (IF NOT EXISTS) =====");
 
         String[] indexStatements = {
-                // Critical indexes for your main queries
-                "CREATE INDEX IF NOT EXISTS idx_meal_user_date ON meal(user_id, date)",
-                "CREATE INDEX IF NOT EXISTS idx_exercise_user_date ON exercise(user_id, date)",
-                "CREATE INDEX IF NOT EXISTS idx_healthmetric_user_date ON health_metric(user_id, date)",
+                // Use IF NOT EXISTS to avoid errors if indexes already exist
+                "CREATE INDEX IF NOT EXISTS idx_exercise_user_date ON exercise(`user_id`, `date`)",
+                "CREATE INDEX IF NOT EXISTS idx_meal_user_date ON meal(`user_id`, `date`)",
+                "CREATE INDEX IF NOT EXISTS idx_healthmetric_user_date ON health_metric(`user_id`, `date`)",
 
-                // Optional but helpful indexes
-                "CREATE INDEX IF NOT EXISTS idx_user_email ON users(email)",
-                "CREATE INDEX IF NOT EXISTS idx_meal_date ON meal(date)",
-                "CREATE INDEX IF NOT EXISTS idx_exercise_date ON exercise(date)"
+                // Additional useful indexes
+                "CREATE INDEX IF NOT EXISTS idx_exercise_user_id ON exercise(`user_id`)",
+                "CREATE INDEX IF NOT EXISTS idx_meal_user_id ON meal(`user_id`)",
+                "CREATE INDEX IF NOT EXISTS idx_healthmetric_user_id ON health_metric(`user_id`)",
+                "CREATE INDEX IF NOT EXISTS idx_exercise_date ON exercise(`date`)",
+                "CREATE INDEX IF NOT EXISTS idx_meal_date ON meal(`date`)",
+                "CREATE INDEX IF NOT EXISTS idx_healthmetric_date ON health_metric(`date`)"
         };
+
+        int createdCount = 0;
+        int skippedCount = 0;
 
         for (String indexSql : indexStatements) {
             try {
+                System.out.println("Checking: " + getIndexName(indexSql));
                 jdbcTemplate.execute(indexSql);
-                System.out.println(" " + getIndexName(indexSql));
+                System.out.println("Created: " + getIndexName(indexSql));
+                createdCount++;
             } catch (Exception e) {
-                System.out.println(" Failed: " + getIndexName(indexSql) + " - " + e.getMessage());
+                System.out.println("Already exists: " + getIndexName(indexSql));
+                skippedCount++;
             }
         }
+
+        System.out.println("Index creation summary: " + createdCount + " created, " + skippedCount + " already existed");
     }
 
     private String getIndexName(String sql) {
