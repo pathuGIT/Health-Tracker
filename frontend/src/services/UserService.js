@@ -49,3 +49,4 @@ export const calculateBMI = (userId) => {
 export const getCalorieSummary = (userId) => {
     return api.get(`/users/${userId}/calorie-summary`);
 };
+

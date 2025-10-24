@@ -1,3 +1,4 @@
+// src/main/java/com/health/tracker/service/HealthMetricService.java
 package com.health.tracker.service;
 
 import com.health.tracker.entity.HealthMetric;
@@ -31,13 +32,13 @@ public class HealthMetricService {
         if (healthMetric.getBMI() == 0 && healthMetric.getWeight() > 0) {
             // Use the actual user's height (in cm) converted to meters (m) for calculation
             float heightInMeters = user.getHeight() / 100.0f;
-            
-            float bmi = calculateBMI(healthMetric.getWeight(), heightInMeters); 
+
+            float bmi = calculateBMI(healthMetric.getWeight(), heightInMeters);
             healthMetric.setBMI(bmi);
         }
-        
+
         // 1. Save the new metric to the HealthMetric table (history)
-        HealthMetric savedMetric = healthMetricRepository.save(healthMetric); 
+        HealthMetric savedMetric = healthMetricRepository.save(healthMetric);
 
         // 2. FIX: Update the user's current weight in the Users table
         user.setWeight(healthMetric.getWeight());
@@ -65,7 +66,8 @@ public class HealthMetricService {
             record.put("weight", row[2]);
             record.put("bmi", row[3]);
             record.put("bmiCategory", row[4]);
-            record.put("weightChange", row[5]);
+            // Adjust index for weight_change if needed, assuming it's the 6th element (index 5)
+            record.put("weightChange", row.length > 5 ? row[5] : null); // Check array length
             progress.add(record);
         }
 
@@ -73,6 +75,9 @@ public class HealthMetricService {
     }
 
     private float calculateBMI(float weight, float heightInMeters) {
+        if (heightInMeters <= 0) {
+            return 0; // Avoid division by zero
+        }
         return weight / (heightInMeters * heightInMeters);
     }
 
@@ -85,6 +90,8 @@ public class HealthMetricService {
             record.put("userId", row[0]);
             record.put("calories_consumed", row[1]);
             record.put("calories_burned", row[2]);
+            // *** ADD THE DATE FIELD HERE ***
+            record.put("date", row[3]); // Assuming date is the 4th element (index 3)
             list.add(record);
         }
         return list;
