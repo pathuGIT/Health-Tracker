@@ -22,7 +22,6 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
             const success = await handleLogin(email, password); 
 
             if (success) {
-                alert("Login Successful! Redirecting to dashboard.");
                 // Signal App.js for UI transition (modal close and tab set)
                 onLoginSuccess(); 
             } else {
