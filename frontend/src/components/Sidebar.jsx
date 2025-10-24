@@ -15,6 +15,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
         { id: "addExercise", label: "Log Workout", icon: "🏋️" },
         { id: "addMeal", label: "Log Meal", icon: "🍽️" },
         { id: "updateBMI", label: "Update Metrics", icon: "⚖️" },
+        { id: "alerts", label: "Alerts", icon: "🔔" }, // NEW ITEM
     ];
 
     const adminItems = [

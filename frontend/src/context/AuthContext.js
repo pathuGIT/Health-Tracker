@@ -38,7 +38,9 @@ export const AuthProvider = ({ children }) => {
                 email: profileData.email,
                 age: profileData.age,
                 height: profileData.height,
-                weight: profileData.currentWeight
+                weight: profileData.currentWeight,
+                // FIX: Store BMI fetched from the server's user profile view
+                bmi: profileData.lastBMIRecorded 
             });
         } catch (error) {
             console.error("Failed to fetch user profile:", error);

@@ -2,24 +2,73 @@
 import { motion } from "framer-motion";
 import BMIChart from "../components/charts/BMIChart";
 import CaloriesChart from "../components/charts/CaloriesChart";
-import { useAuth } from "../context/AuthContext"; // NEW IMPORT
+import { useAuth } from "../context/AuthContext"; 
+import { useEffect, useState } from "react"; 
+import { getHealthProgress } from "../services/HealthMetricService";
 
 const Profile = () => {
     // FIX: Get user object and authentication states from context
-    const { user, isAuthenticated, isAuthLoading } = useAuth();
+    const { user, userId, isAuthenticated, isAuthLoading } = useAuth(); // ADDED userId
+    
+    // --- NEW STATES FOR ADVANCED DATA ---
+    const [bmiHistory, setBmiHistory] = useState([]);
+    const [calorieChartData, setCalorieChartData] = useState([]); // Kept for consistency
+    const [chartsLoading, setChartsLoading] = useState(true);
 
-    // Helper function to calculate BMI
-    const calculatedBMI = (user?.weight && user?.height > 0) 
-        ? (user.weight / ((user.height / 100) ** 2)).toFixed(1) 
-        : 'N/A';
+    // Fetch Advanced Data (Views)
+    useEffect(() => {
+        if (isAuthenticated && userId) {
+            setChartsLoading(true);
+            const fetchChartsData = async () => {
+                // 1. Fetch Health Metrics Progress (BMI History View)
+                try {
+                    const progressRes = await getHealthProgress(userId);
+                    const progressData = progressRes.data.map(item => ({
+                        // Clean date for chart key
+                        date: new Date(item.date).toISOString().split('T')[0], 
+                        bmi: item.bmi,
+                    })).filter(item => item.bmi); // Only keep records with BMI
+                    setBmiHistory(progressData);
+                } catch (e) {
+                    console.error("Failed to fetch BMI history:", e);
+                    setBmiHistory([]);
+                }
+                
+                // 2. Mock/Placeholder Calorie Chart Data (Same as Dashboard for consistency)
+                const mockChartData = [
+                    { day: "Mon", consumed: 2200, burned: 1800, date: '2025-01-01' },
+                    { day: "Tue", consumed: 2000, burned: 1900, date: '2025-01-02' },
+                    { day: "Wed", consumed: 2500, burned: 2100, date: '2025-01-03' },
+                    { day: "Thu", consumed: 2300, burned: 2000, date: '2025-01-04' },
+                    { day: "Fri", consumed: 2400, burned: 2200, date: '2025-01-05' },
+                ].map(item => ({
+                    date: item.date, 
+                    consumed: item.consumed, 
+                    burned: item.burned 
+                }));
+                setCalorieChartData(mockChartData);
+                
+                setChartsLoading(false);
+            };
+            fetchChartsData();
+        } else {
+            // Reset state
+            setBmiHistory([]);
+            setCalorieChartData([]);
+            setChartsLoading(false);
+        }
+    }, [userId, isAuthenticated]); // Depend on relevant auth states
+
+    // FIX: Retrieve BMI directly from the user context object (fetched from backend)
+    const calculatedBMI = user?.bmi ? parseFloat(user.bmi).toFixed(1) : 'N/A';
         
     // Handle loading state
-    if (isAuthLoading) {
+    if (isAuthLoading || chartsLoading) { // Combined loading states
         return (
             <div className="card text-center py-12">
                 <div className="flex flex-col items-center">
                     <div className="w-12 h-12 border-4 border-primary-blue border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-text-muted">Loading user profile...</p>
+                    <p className="text-text-muted">Loading user profile and charts...</p>
                 </div>
             </div>
         );
@@ -85,7 +134,7 @@ const Profile = () => {
                     transition={{ delay: 0.2 }}
                 >
                     <h2 className="text-xl font-semibold text-accent-green mb-4 border-b border-gray-100 pb-2">BMI History ⚖️</h2>
-                    <BMIChart />
+                    <BMIChart data={bmiHistory} /> 
                 </motion.div>
                 <motion.div 
                     className="card p-6"
@@ -94,7 +143,7 @@ const Profile = () => {
                     transition={{ delay: 0.3 }}
                 >
                     <h2 className="text-xl font-semibold text-primary-blue mb-4 border-b border-gray-100 pb-2">Calories Summary 📈</h2>
-                    <CaloriesChart />
+                    <CaloriesChart data={calorieChartData} /> 
                 </motion.div>
             </div>
         </motion.div>

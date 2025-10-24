@@ -1,17 +1,82 @@
 // src/components/Dashboard.jsx
-import React from "react";
+import React, { useState, useEffect } from "react"; 
 import { motion } from "framer-motion";
 import BMIChart from "./charts/BMIChart";
 import CaloriesChart from "./charts/CaloriesChart";
 import { useAuth } from "../context/AuthContext"; 
+// NEW IMPORTS
+import { getCalorieSummary } from "../services/UserService";
+import { getHealthProgress } from "../services/HealthMetricService";
 
 // Helper function to calculate total calories (for simplicity)
 const calculateTotalCalories = (items, key) => items.reduce((acc, item) => acc + (item[key] || 0), 0);
 
 const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
     // FIX: Get isAdmin flag from context
-    const { user, isAdmin } = useAuth();
+    const { user, userId, isAdmin, isAuthenticated } = useAuth(); 
     
+    // --- NEW STATES FOR ADVANCED DATA ---
+    const [calorieSummary, setCalorieSummary] = useState(null);
+    const [bmiHistory, setBmiHistory] = useState([]);
+    const [calorieChartData, setCalorieChartData] = useState([]);
+    const [summaryLoading, setSummaryLoading] = useState(true);
+
+    // Fetch Advanced Data (UDF, Views)
+    useEffect(() => {
+        if (isAuthenticated && userId && !isAdmin) {
+            setSummaryLoading(true);
+            const fetchAdvancedData = async () => {
+                // 1. Fetch Calorie Summary (UDF)
+                try {
+                    const summaryRes = await getCalorieSummary(userId);
+                    // The result contains { userId, calorieSummary: "Calorie deficit: 50.00" }
+                    setCalorieSummary(summaryRes.data.calorieSummary);
+                } catch (e) {
+                    console.error("Failed to fetch calorie summary:", e);
+                    setCalorieSummary("N/A - Failed to fetch.");
+                }
+
+                // 2. Fetch Health Metrics Progress (BMI History View)
+                try {
+                    const progressRes = await getHealthProgress(userId);
+                    const progressData = progressRes.data.map(item => ({
+                        // Clean date for chart key
+                        date: new Date(item.date).toISOString().split('T')[0], 
+                        bmi: item.bmi,
+                    })).filter(item => item.bmi); // Only keep records with BMI
+                    setBmiHistory(progressData);
+                } catch (e) {
+                    console.error("Failed to fetch BMI history:", e);
+                    setBmiHistory([]);
+                }
+                
+                // 3. Mock Calorie Chart Data for now (replace with fetching historical summary data later)
+                const mockChartData = [
+                    { day: "Mon", consumed: 2200, burned: 1800, date: '2025-01-01' },
+                    { day: "Tue", consumed: 2000, burned: 1900, date: '2025-01-02' },
+                    { day: "Wed", consumed: 2500, burned: 2100, date: '2025-01-03' },
+                    { day: "Thu", consumed: 2300, burned: 2000, date: '2025-01-04' },
+                    { day: "Fri", consumed: 2400, burned: 2200, date: '2025-01-05' },
+                ].map(item => ({
+                    date: item.date, 
+                    consumed: item.consumed, 
+                    burned: item.burned 
+                }));
+                setCalorieChartData(mockChartData);
+                
+                setSummaryLoading(false);
+            };
+            fetchAdvancedData();
+        } else {
+            // Reset for unauthenticated/admin view
+            setCalorieSummary(null);
+            setBmiHistory([]);
+            setCalorieChartData([]);
+            setSummaryLoading(false);
+        }
+    }, [userId, isAuthenticated, isAdmin]); // Rerun on auth changes
+
+
     // Extract user details from context or default to null
     const activeUserName = user?.name;
     const activeUserWeight = user?.weight;
@@ -20,16 +85,18 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
     // --- Aggregated Stats (User Only) ---
     const totalExercises = exercises.length;
     const totalMeals = meals.length;
-    const totalCaloriesBurned = calculateTotalCalories(exercises, 'caloriesBurned');
-    const totalCaloriesConsumed = calculateTotalCalories(meals, 'caloriesConsumed');
-    const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
-
-    // Calculate BMI
-    const demoBMI = (activeUserWeight && activeUserHeight > 0) 
-        ? (activeUserWeight / ((activeUserHeight / 100) ** 2)).toFixed(1) 
-        : 'N/A';
+    
+    // FIX: Retrieve BMI directly from the user context object (fetched from backend)
+    const demoBMI = user?.bmi ? parseFloat(user.bmi).toFixed(1) : 'N/A';
         
     const demoWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
+    
+    // Determine card color and value based on Calorie Summary UDF result
+    let netCaloriesDisplay = calorieSummary || "Loading...";
+    const isSurplus = calorieSummary ? calorieSummary.includes("surplus") : false;
+    // Extract the numerical/summary part for display
+    const netCaloriesValue = calorieSummary ? netCaloriesDisplay.split(': ')[1] : netCaloriesDisplay;
+
 
     const StatCard = ({ title, value, icon, color }) => (
         <motion.div
@@ -235,32 +302,42 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 {/* Net Calories Card */}
+                 {/* Net Calories Card - NOW USES UDF */}
                  <motion.div 
                     className={`card col-span-1 p-6 text-center 
-                        ${netCalories > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}
+                        ${isSurplus ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}
                     whileHover={{ y: -5 }}
                 >
-                    <h3 className="text-lg font-semibold text-text-dark mb-2">Net Calories (Consumed - Burned)</h3>
-                    <p className={`text-4xl font-extrabold ${netCalories > 0 ? 'text-accent-red' : 'text-accent-green'}`}>
-                        {netCalories.toFixed(0)} kcal
-                    </p>
-                    <p className="text-sm text-text-muted mt-2">
-                        {netCalories > 0 ? 'Calorie Surplus - Track more exercise!' : 'Calorie Deficit/Maintenance - Great job!'}
-                    </p>
+                    <h3 className="text-lg font-semibold text-text-dark mb-2">Net Calories Today (Consumed vs. Burned)</h3>
+                    {summaryLoading ? (
+                        <div className="flex items-center justify-center h-10">
+                            <svg className="animate-spin h-5 w-5 text-text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </div>
+                    ) : (
+                        <>
+                            <p className={`text-xl md:text-3xl lg:text-4xl font-extrabold ${isSurplus ? 'text-accent-red' : 'text-accent-green'}`}>
+                                {netCaloriesValue}
+                            </p>
+                            <p className="text-sm text-text-muted mt-2">
+                                {isSurplus ? 'Calorie Surplus - Focus on exercise or smaller meals.' : 'Calorie Deficit/Maintenance - Great job!'}
+                            </p>
+                        </>
+                    )}
                 </motion.div>
 
                 {/* Charts */}
                 <div className="card col-span-2">
-                    <h3 className="text-xl font-bold text-primary-blue mb-4">Weekly Health Trends</h3>
-                    <CaloriesChart />
+                    <h3 className="text-xl font-bold text-primary-blue mb-4">Weekly Calorie Trends 📈</h3>
+                    {/* FIX: Pass dynamic data to chart */}
+                    <CaloriesChart data={calorieChartData} />
                 </div>
             </div>
 
             {/* BMI History (Standalone Chart) */}
             <div className="card">
-                <h3 className="text-xl font-bold text-primary-blue mb-4">BMI History</h3>
-                <BMIChart />
+                <h3 className="text-xl font-bold text-primary-blue mb-4">BMI History ⚖️</h3>
+                {/* FIX: Pass dynamic data to chart */}
+                <BMIChart data={bmiHistory} />
             </div>
 
             {/* Recent Activities - Minimalist view */}
