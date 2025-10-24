@@ -16,6 +16,8 @@ public class DatabaseInitializer implements CommandLineRunner {
         System.out.println("Initializing advanced database objects...");
 
         try {
+            createIndexes();
+
             // Execute views first
             createViews();
 
@@ -24,6 +26,9 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             // Execute triggers
             createTriggers();
+
+            //create index
+            createIndexes();
 
             System.out.println("Advanced database objects initialized successfully");
         } catch (Exception e) {
@@ -263,4 +268,35 @@ public class DatabaseInitializer implements CommandLineRunner {
             System.err.println("Error creating triggers: " + e.getMessage());
         }
     }
+
+    private void createIndexes() {
+        System.out.println(" Creating indexes...");
+
+        String[] indexStatements = {
+                // Critical indexes for your main queries
+                "CREATE INDEX IF NOT EXISTS idx_meal_user_date ON meal(user_id, date)",
+                "CREATE INDEX IF NOT EXISTS idx_exercise_user_date ON exercise(user_id, date)",
+                "CREATE INDEX IF NOT EXISTS idx_healthmetric_user_date ON health_metric(user_id, date)",
+
+                // Optional but helpful indexes
+                "CREATE INDEX IF NOT EXISTS idx_user_email ON users(email)",
+                "CREATE INDEX IF NOT EXISTS idx_meal_date ON meal(date)",
+                "CREATE INDEX IF NOT EXISTS idx_exercise_date ON exercise(date)"
+        };
+
+        for (String indexSql : indexStatements) {
+            try {
+                jdbcTemplate.execute(indexSql);
+                System.out.println(" " + getIndexName(indexSql));
+            } catch (Exception e) {
+                System.out.println(" Failed: " + getIndexName(indexSql) + " - " + e.getMessage());
+            }
+        }
+    }
+
+    private String getIndexName(String sql) {
+        return sql.replace("CREATE INDEX IF NOT EXISTS ", "").split(" ")[0];
+    }
+
+
 }
