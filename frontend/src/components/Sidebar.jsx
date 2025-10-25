@@ -1,11 +1,36 @@
 // frontend/src/components/Sidebar.jsx
-import React from "react";
+import React, { useState, useEffect } from "react"; // Import useState and useEffect
 import { motion } from "framer-motion";
-import { useAuth } from "../context/AuthContext"; // NEW IMPORT
+import { useAuth } from "../context/AuthContext"; 
+import { getUnreadAlertsByUser } from "../services/AlertService"; // Import the alert service
 
 const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
-    // FIX: Get userRole and isAdmin from context
-    const { userRole, isAdmin } = useAuth();
+    // FIX: Get userRole, isAdmin, and userId from context
+    const { userRole, isAdmin, userId, isAuthenticated, isAuthLoading } = useAuth(); // Added userId, isAuthenticated, isAuthLoading
+    
+    // NEW STATE: To store the count of unread alerts
+    const [unreadAlertCount, setUnreadAlertCount] = useState(0);
+
+    // Fetch unread alert count when the component mounts or auth state changes
+    useEffect(() => {
+        // Only fetch if authenticated, not admin, and auth loading is done
+        if (isAuthenticated && userId && !isAdmin && !isAuthLoading) {
+            const fetchCount = async () => {
+                try {
+                    const response = await getUnreadAlertsByUser(userId);
+                    // The response.data should be an array of unread alerts
+                    setUnreadAlertCount(response.data.length); 
+                } catch (error) {
+                    console.error("Failed to fetch unread alert count:", error);
+                    setUnreadAlertCount(0); // Reset on error
+                }
+            };
+            fetchCount();
+        } else {
+            setUnreadAlertCount(0); // Reset if not logged in or admin
+        }
+    }, [userId, isAuthenticated, isAdmin, isAuthLoading]); // Dependencies for the effect
+
 
     const allUserItems = [
         { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -15,13 +40,13 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
         { id: "addExercise", label: "Log Workout", icon: "🏋️" },
         { id: "addMeal", label: "Log Meal", icon: "🍽️" },
         { id: "updateBMI", label: "Update Metrics", icon: "⚖️" },
+        { id: "alerts", label: "Alerts", icon: "🔔" }, // Item for alerts
     ];
 
     const adminItems = [
         { id: "dashboard", label: "Admin Dashboard", icon: "👑" },
         { id: "users", label: "Manage Users", icon: "👥" },
         { id: "addUser", label: "Register New User", icon: "➕" },
-        // Admin tasks like monitoring can be added here
     ];
 
     const unauthenticatedItems = [
@@ -30,7 +55,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
         { id: "register", label: "Register", icon: "📝" },
     ];
 
-    // Determine the set of links to show based on auth status and role
+    // Determine the set of links to show
     let filteredNavItems = [];
     if (!authToken) {
         filteredNavItems = unauthenticatedItems;
@@ -40,13 +65,11 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
         filteredNavItems = allUserItems;
     }
 
-    // Fallback to allUserItems if role is not set yet (during loading)
-    if (authToken && !userRole) {
-        filteredNavItems = allUserItems;
+    if (authToken && !userRole && !isAuthLoading) { // Handle brief loading state
+        filteredNavItems = allUserItems; // Default assumption for loading
     }
 
-    // Determine the height of the top area for spacing
-    const topSpacingClass = authToken ? 'h-[72px]' : 'mb-8'; // Match header height (Header.jsx py-4 means height ~72px)
+    const topSpacingClass = authToken ? 'h-[72px]' : 'mb-8'; 
 
     return (
         <motion.div
@@ -56,11 +79,8 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
             exit={{ x: -256 }}
             transition={{ type: "spring", stiffness: 100, damping: 20 }}
         >
-            {/* Logo/Header - MODIFIED: Removed branding/logo if authenticated to prevent overlap */}
-            {/* Added spacing div to push links down past the fixed global header */}
             <div className={`mb-4 p-2 ${topSpacingClass} flex items-end justify-start`}>
-                {/* Only show Role if logged in */}
-                {authToken && userRole && (
+                 {authToken && userRole && (
                     <p className="text-xs font-medium text-text-muted px-1"></p>
                 )}
             </div>
@@ -70,7 +90,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
                 {filteredNavItems.map(item => (
                     <motion.button
                         key={item.id}
-                        className={`flex items-center w-full px-4 py-3 rounded-xl font-medium transition-all duration-200 text-left 
+                        className={`flex items-center justify-between w-full px-4 py-3 rounded-xl font-medium transition-all duration-200 text-left 
                             ${activeTab === item.id
                                 ? 'bg-primary-blue text-white shadow-lg'
                                 : 'text-text-dark hover:bg-gray-100'}`}
@@ -78,8 +98,16 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, authToken }) => {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                     >
-                        <span className="mr-3 text-xl">{item.icon}</span>
-                        {item.label}
+                        <div className="flex items-center">
+                            <span className="mr-3 text-xl">{item.icon}</span>
+                            {item.label}
+                        </div>
+                        {/* NEW: Badge for Alerts */}
+                        {item.id === 'alerts' && unreadAlertCount > 0 && (
+                            <span className="ml-auto bg-accent-red text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                                {unreadAlertCount}
+                            </span>
+                        )}
                     </motion.button>
                 ))}
             </nav>

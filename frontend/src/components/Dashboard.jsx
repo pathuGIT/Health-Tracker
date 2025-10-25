@@ -1,36 +1,131 @@
 // src/components/Dashboard.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import BMIChart from "./charts/BMIChart";
 import CaloriesChart from "./charts/CaloriesChart";
-import { useAuth } from "../context/AuthContext"; 
-
-// Helper function to calculate total calories (for simplicity)
-const calculateTotalCalories = (items, key) => items.reduce((acc, item) => acc + (item[key] || 0), 0);
+import { useAuth } from "../context/AuthContext";
+import { getCalorieSummary } from "../services/UserService";
+// Import getCaloriesConsumedBurned and getHealthProgress
+import { getHealthProgress, getCaloriesConsumedBurned } from "../services/HealthMetricService"; // Use this endpoint
 
 const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
-    // FIX: Get isAdmin flag from context
-    const { user, isAdmin } = useAuth();
-    
-    // Extract user details from context or default to null
+    // Get user details and authentication status from context
+    const { user, userId, isAdmin, isAuthenticated } = useAuth();
+
+    // State for various data points shown on the dashboard
+    const [calorieSummary, setCalorieSummary] = useState(null); // Today's net calories
+    const [bmiHistory, setBmiHistory] = useState([]);         // Data for BMI chart
+    const [calorieChartData, setCalorieChartData] = useState([]); // Data for Calories chart
+    const [summaryLoading, setSummaryLoading] = useState(true); // Loading state indicator
+
+    // Fetch dashboard-specific data when user logs in or authentication state changes
+    useEffect(() => {
+        // Only fetch data if the user is authenticated, has a userId, and is not an admin
+        if (isAuthenticated && userId && !isAdmin) {
+            setSummaryLoading(true); // Start loading indicator
+
+            const fetchAdvancedData = async () => {
+                // --- Fetch Today's Calorie Summary (using UDF) ---
+                try {
+                    const summaryRes = await getCalorieSummary(userId);
+                    setCalorieSummary(summaryRes.data.calorieSummary);
+                } catch (e) {
+                    console.error("Failed to fetch calorie summary:", e);
+                    setCalorieSummary("N/A - Failed to fetch.");
+                }
+
+                // --- Fetch BMI History (using health_progress_view) ---
+                try {
+                    const progressRes = await getHealthProgress(userId);
+                    const progressData = progressRes.data.map(item => ({
+                        date: new Date(item.date).toISOString().split('T')[0], // Format date
+                        bmi: item.bmi,
+                    })).filter(item => item.bmi); // Ensure BMI exists
+                    setBmiHistory(progressData);
+                } catch (e) {
+                    console.error("Failed to fetch BMI history:", e);
+                    setBmiHistory([]);
+                }
+
+                // --- Fetch Raw Calorie Data and Aggregate on Frontend ---
+                try {
+                    // 1. Fetch potentially non-aggregated data from the view
+                    const calorieRes = await getCaloriesConsumedBurned(userId);
+                    const rawData = calorieRes.data; // Array like [{ date, consumed, burned }, { date, ...}]
+
+                    // ***** Log the raw data received from API *****
+                    console.log("Raw Data Received from API:", rawData);
+                    // ***********************************************
+
+                    // 2. Aggregate the raw data by date on the frontend
+                    const dailyTotals = {};
+                    rawData.forEach(item => {
+                        const dateStr = new Date(item.date).toISOString().split('T')[0]; // Normalize date format
+                        if (!dailyTotals[dateStr]) {
+                            // Initialize if date doesn't exist yet
+                            dailyTotals[dateStr] = {
+                                date: dateStr,
+                                consumed: 0,
+                                burned: 0
+                            };
+                        }
+                        // Add current item's values to the daily total
+                        dailyTotals[dateStr].consumed += item.calories_consumed || 0;
+                        dailyTotals[dateStr].burned += item.calories_burned || 0;
+                    });
+
+                    // 3. Convert the aggregated totals object into an array and sort by date
+                    const aggregatedChartData = Object.values(dailyTotals)
+                        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                    // Optional: Limit to the last 7 days if desired
+                    // const last7DaysData = aggregatedChartData.slice(-7);
+                    // setCalorieChartData(last7DaysData);
+
+                    // ***** Log the aggregated data *****
+                    console.log("Aggregated Data for Chart:", aggregatedChartData);
+                    // ************************************
+
+                    // 4. Set the aggregated data for the chart state
+                    setCalorieChartData(aggregatedChartData);
+
+                } catch (e) {
+                    console.error("Failed to fetch and aggregate calorie chart data:", e);
+                    setCalorieChartData([]); // Set to empty array on failure
+                }
+                // --- End of Frontend Aggregation Logic ---
+
+                setSummaryLoading(false); // Stop loading indicator
+            };
+
+            fetchAdvancedData(); // Execute the data fetching
+        } else {
+            // Reset state if user is not authenticated, is an admin, or userId is missing
+            setCalorieSummary(null);
+            setBmiHistory([]);
+            setCalorieChartData([]);
+            setSummaryLoading(false);
+        }
+    }, [userId, isAuthenticated, isAdmin]); // Re-run effect if these values change
+
+
+    // Extract user details from context for display
     const activeUserName = user?.name;
     const activeUserWeight = user?.weight;
-    const activeUserHeight = user?.height;
 
     // --- Aggregated Stats (User Only) ---
-    const totalExercises = exercises.length;
-    const totalMeals = meals.length;
-    const totalCaloriesBurned = calculateTotalCalories(exercises, 'caloriesBurned');
-    const totalCaloriesConsumed = calculateTotalCalories(meals, 'caloriesConsumed');
-    const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
+    const totalExercises = exercises.length; // Count based on basic list fetch (prop)
+    const totalMeals = meals.length;         // Count based on basic list fetch (prop)
+    const displayBMI = user?.bmi ? parseFloat(user.bmi).toFixed(1) : 'N/A';
+    const displayWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
 
-    // Calculate BMI
-    const demoBMI = (activeUserWeight && activeUserHeight > 0) 
-        ? (activeUserWeight / ((activeUserHeight / 100) ** 2)).toFixed(1) 
-        : 'N/A';
-        
-    const demoWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
+    // Logic for displaying net calorie status
+    let netCaloriesDisplay = calorieSummary || "Loading...";
+    const isSurplus = calorieSummary ? calorieSummary.includes("surplus") : false;
+    const netCaloriesValue = calorieSummary ? netCaloriesDisplay.split(': ')[1] : netCaloriesDisplay;
 
+
+    // Reusable Stat Card component
     const StatCard = ({ title, value, icon, color }) => (
         <motion.div
             className="card text-center flex flex-col justify-center items-center p-4"
@@ -45,10 +140,12 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
         </motion.div>
     );
 
-    // ENHANCED: Attractive Pre-Login Dashboard
+    // --- RENDER LOGIC ---
+
+    // Display for users who are not logged in
     if (showLoginPrompt) {
-        return (
-            <motion.div 
+         return (
+             <motion.div
                 className="space-y-12"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -56,7 +153,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             >
                 {/* Hero Section */}
                 <div className="text-center max-w-4xl mx-auto pt-8">
-                    <motion.h1 
+                    <motion.h1
                         className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent-green mb-6"
                         initial={{ y: -30, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -64,7 +161,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                     >
                         Transform Your Fitness Journey
                     </motion.h1>
-                    <motion.p 
+                    <motion.p
                         className="text-xl text-text-muted mb-10 max-w-2xl mx-auto leading-relaxed"
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -74,7 +171,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                     </motion.p>
                     <motion.button
                         className="btn-primary text-lg px-8 py-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-                        onClick={onLoginClick}
+                        onClick={() => onLoginClick("login")} // Use specific action
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.98 }}
                         initial={{ opacity: 0 }}
@@ -84,15 +181,13 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                         🚀 Start Your Fitness Journey
                     </motion.button>
                 </div>
-
                 {/* Features Grid */}
-                <motion.div 
+                <motion.div
                     className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16"
                     initial={{ y: 40, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.6, duration: 0.7 }}
                 >
-                    {/* Feature 1 */}
                     <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-primary-blue">
                         <div className="text-5xl mb-4">📊</div>
                         <h3 className="text-2xl font-bold text-text-dark mb-4">Advanced Analytics</h3>
@@ -100,8 +195,6 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                             Track BMI, calories, and progress with beautiful charts and insights to optimize your fitness strategy.
                         </p>
                     </div>
-
-                    {/* Feature 2 */}
                     <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-green">
                         <div className="text-5xl mb-4">💪</div>
                         <h3 className="text-2xl font-bold text-text-dark mb-4">Workout Tracking</h3>
@@ -109,8 +202,6 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                             Log exercises, monitor calories burned, and build personalized workout routines that deliver results.
                         </p>
                     </div>
-
-                    {/* Feature 3 */}
                     <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-red">
                         <div className="text-5xl mb-4">🍎</div>
                         <h3 className="text-2xl font-bold text-text-dark mb-4">Nutrition Monitoring</h3>
@@ -119,9 +210,8 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                         </p>
                     </div>
                 </motion.div>
-
                 {/* Demo Preview Section */}
-                <motion.div 
+                <motion.div
                     className="card p-8 bg-gradient-to-br from-blue-50 to-green-50 border-2 border-primary-blue border-opacity-20"
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -146,37 +236,35 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                             <p className="font-semibold text-text-dark">Goal Setting</p>
                         </div>
                     </div>
-                    
                     <div className="text-center">
                         <button
                             className="btn-primary px-8 py-3 rounded-full font-semibold"
-                            onClick={onLoginClick}
+                            onClick={() => onLoginClick("register")} // Changed to trigger register modal
                         >
                             🔑 Unlock All Features - Join Now!
                         </button>
                     </div>
                 </motion.div>
-
-                {/* Testimonial/Stats Section */}
-                <motion.div 
+                {/* Testimonial */}
+                <motion.div
                     className="text-center py-8"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1, duration: 0.6 }}
                 >
-                    <p className="text-text-muted italic text-lg">
+                     <p className="text-text-muted italic text-lg">
                         "FitTrack Pro helped me lose 15kg and maintain my ideal weight for over a year!"
                     </p>
                     <p className="text-text-dark font-semibold mt-2">- Sarah M., FitTrack Pro User</p>
                 </motion.div>
             </motion.div>
-        );
+         );
     }
-    
-    // --- NEW: ADMIN DASHBOARD VIEW ---
+
+    // Display for Admin users
     if (isAdmin) {
         return (
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -184,14 +272,12 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             >
                 <h1 className="text-3xl font-bold text-accent-green">Admin Panel 👑</h1>
                 <p className="text-text-muted">Welcome back, {activeUserName || 'Admin'}. You have oversight over **{users.length}** registered users.</p>
-
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <StatCard title="Total Registered Users" value={users.length} icon="👥" color="#4F46E5" />
                     <StatCard title="Actions Available" value="Manage Users" icon="🛠️" color="#F59E0B" />
                     <StatCard title="Add New User" value="Register User" icon="➕" color="#10B981" />
                 </div>
-
-                <motion.div 
+                <motion.div
                     className="card p-6"
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -199,7 +285,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                 >
                     <h2 className="text-xl font-semibold text-text-dark mb-4">Quick Links</h2>
                     <ul className="space-y-2">
-                        <li>
+                         <li>
                             <button onClick={() => onLoginClick("users")} className="text-primary-blue hover:underline">
                                 View All User Profiles
                             </button>
@@ -214,10 +300,10 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             </motion.div>
         );
     }
-    
-    // --- EXISTING: USER DASHBOARD VIEW ---
+
+    // Display for regular logged-in users
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
@@ -225,53 +311,61 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
         >
             <h1 className="text-3xl font-bold text-text-dark">Hello, {activeUserName || 'User'}!</h1>
             <p className="text-xl text-text-muted">Here is your daily fitness overview.</p>
-            
+
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <StatCard title="Current BMI" value={demoBMI} icon="⚖️" color="#4F46E5" />
-                <StatCard title="Current Weight" value={demoWeight} icon="🏋️" color="#10B981" />
-                <StatCard title="Workouts Logged" value={totalExercises} icon="💪" color="#F59E0B" />
-                <StatCard title="Meals Tracked" value={totalMeals} icon="🍎" color="#EF4444" />
+                <StatCard title="Current BMI" value={displayBMI} icon="⚖️" color="#4F46E5" />
+                <StatCard title="Current Weight" value={displayWeight} icon="🏋️" color="#10B981" />
+                <StatCard title="Total Workouts" value={totalExercises} icon="💪" color="#F59E0B" />
+                <StatCard title="Total Meals" value={totalMeals} icon="🍎" color="#EF4444" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  {/* Net Calories Card */}
-                 <motion.div 
-                    className={`card col-span-1 p-6 text-center 
-                        ${netCalories > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}
+                 <motion.div
+                    className={`card col-span-1 p-6 text-center
+                        ${isSurplus ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}
                     whileHover={{ y: -5 }}
                 >
-                    <h3 className="text-lg font-semibold text-text-dark mb-2">Net Calories (Consumed - Burned)</h3>
-                    <p className={`text-4xl font-extrabold ${netCalories > 0 ? 'text-accent-red' : 'text-accent-green'}`}>
-                        {netCalories.toFixed(0)} kcal
-                    </p>
-                    <p className="text-sm text-text-muted mt-2">
-                        {netCalories > 0 ? 'Calorie Surplus - Track more exercise!' : 'Calorie Deficit/Maintenance - Great job!'}
-                    </p>
+                    <h3 className="text-lg font-semibold text-text-dark mb-2">Net Calories Today</h3>
+                    {summaryLoading ? (
+                        <div className="flex items-center justify-center h-10">
+                            <svg className="animate-spin h-5 w-5 text-text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </div>
+                    ) : (
+                        <>
+                            <p className={`text-xl md:text-3xl lg:text-4xl font-extrabold ${isSurplus ? 'text-accent-red' : 'text-accent-green'}`}>
+                                {netCaloriesValue}
+                            </p>
+                            <p className="text-sm text-text-muted mt-2">
+                                {isSurplus ? 'Surplus Today' : 'Deficit/Balance Today'}
+                            </p>
+                        </>
+                    )}
                 </motion.div>
 
-                {/* Charts */}
+                {/* Calories Chart */}
                 <div className="card col-span-2">
-                    <h3 className="text-xl font-bold text-primary-blue mb-4">Weekly Health Trends</h3>
-                    <CaloriesChart />
+                    <h3 className="text-xl font-bold text-primary-blue mb-4">Weekly Calorie Trends 📈</h3>
+                    <CaloriesChart data={calorieChartData} /> {/* Uses aggregated data */}
                 </div>
             </div>
 
-            {/* BMI History (Standalone Chart) */}
+            {/* BMI History Chart */}
             <div className="card">
-                <h3 className="text-xl font-bold text-primary-blue mb-4">BMI History</h3>
-                <BMIChart />
+                <h3 className="text-xl font-bold text-primary-blue mb-4">BMI History ⚖️</h3>
+                <BMIChart data={bmiHistory} />
             </div>
 
-            {/* Recent Activities - Minimalist view */}
+            {/* Recent Activities */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Exercises */}
                 <div className="card">
                     <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Workouts 💪</h3>
                     <div className="space-y-3">
                         {exercises.slice(0, 3).map((exercise, index) => (
-                            <motion.div 
-                                key={index} 
+                            <motion.div
+                                key={exercise.exerciseId || index}
                                 className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -290,8 +384,8 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                     <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Meals 🍎</h3>
                     <div className="space-y-3">
                         {meals.slice(0, 3).map((meal, index) => (
-                            <motion.div 
-                                key={index} 
+                            <motion.div
+                                key={meal.mealId || index}
                                 className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}

@@ -1,27 +1,47 @@
 // src/components/Charts/CaloriesChart.jsx
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
-const data = [
-    { day: "Mon", consumed: 2200, burned: 1800 },
-    { day: "Tue", consumed: 2000, burned: 1900 },
-    { day: "Wed", consumed: 2500, burned: 2100 },
-    { day: "Thu", consumed: 2300, burned: 2000 },
-    { day: "Fri", consumed: 2400, burned: 2200 },
-    { day: "Sat", consumed: 2600, burned: 2300 },
-    { day: "Sun", consumed: 2000, burned: 1800 },
-];
+// The component now accepts data as a prop
+// Data format expected: [{ date, consumed, burned }]
+const CaloriesChart = ({ data }) => {
+     if (!data || data.length === 0) {
+        return <p className="text-center text-text-muted">No Calorie data available for this period.</p>;
+    }
+    
+    // Convert date string/object to a readable format for the XAxis tick
+    const formatXAxis = (tickItem) => {
+        if (!tickItem) return '';
+        const date = new Date(tickItem);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    
+    // Sort data by date just in case
+    const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-const CaloriesChart = () => {
+
     return (
         <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip />
+            <BarChart data={sortedData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis 
+                    dataKey="date" 
+                    tickFormatter={formatXAxis} 
+                    stroke="#6B7280" 
+                    tickLine={false} 
+                    axisLine={false} 
+                />
+                <YAxis 
+                    stroke="#6B7280" 
+                    tickLine={false} 
+                    axisLine={false} 
+                />
+                <Tooltip 
+                    labelFormatter={(label) => `Date: ${new Date(label).toLocaleDateString()}`}
+                    formatter={(value, name) => [`${value} kcal`, name.charAt(0).toUpperCase() + name.slice(1)]}
+                />
                 <Legend />
-                <Bar dataKey="consumed" fill="#f87171" />
-                <Bar dataKey="burned" fill="#34d399" />
+                <Bar dataKey="consumed" fill="#f87171" name="Consumed" />
+                <Bar dataKey="burned" fill="#34d399" name="Burned" />
             </BarChart>
         </ResponsiveContainer>
     );
