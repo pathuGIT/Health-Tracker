@@ -21,6 +21,11 @@ public class UsersController {
     @Autowired
     private UserRepository userRepository;
 
+    @GetMapping("/msg")
+    public String msg() {
+        return "Hello World";
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('USER') or hasAuthority('ADMIN')") // Securing the endpoint
     public List<Users> getAllUsers() {
