@@ -18,7 +18,7 @@ const Header = ({ onTabChange, activeTab }) => {
                     onClick={() => onTabChange("dashboard")}
                     className="text-3xl font-bold text-primary-blue flex items-center hover:opacity-90 transition-opacity"
                 >
-                    <span className="text-accent-green mr-2 text-4xl">💚</span> FitTrack Pro
+                    <span className="text-accent-green mr-2 text-4xl"></span> FitTrack Pro
                 </button>
 
                 {/* Navigation/Actions */}
