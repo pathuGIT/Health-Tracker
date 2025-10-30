@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: 'https://health-tracker-orionx-escsczh2gcedbzfy.eastasia-01.azurewebsites.net/api',
 });
 
 // Attach token to requests, but NOT for refresh endpoint
