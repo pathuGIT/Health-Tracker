@@ -187,7 +187,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                     "CREATE FUNCTION get_user_calorie_summary(p_user_id INT) " +
                             "RETURNS VARCHAR(255) " +
                             "READS SQL DATA " +
-                            "DETERMINISTIC " +
+                            "NOT DETERMINISTIC " +
                             "BEGIN " +
                             "    DECLARE total_consumed FLOAT; " +
                             "    DECLARE total_burned FLOAT; " +
@@ -292,7 +292,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             // Note: SET GLOBAL requires SUPER privilege. This might fail on some hosted databases.
             // It's often better to set this in the database configuration (e.g., my.cnf or Azure portal).
             try {
-                jdbcTemplate.execute("SET GLOBAL event_scheduler = ON;");
+                //jdbcTemplate.execute("SET GLOBAL event_scheduler = ON;");
                 System.out.println("Event scheduler enabled.");
             } catch (Exception e) {
                 System.err.println("Could not enable event scheduler. MySQL user may lack SUPER privilege. " +
