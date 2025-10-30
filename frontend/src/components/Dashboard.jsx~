@@ -6,9 +6,7 @@ import CaloriesChart from "./charts/CaloriesChart";
 import { useAuth } from "../context/AuthContext";
 import { getCalorieSummary } from "../services/UserService";
 // Import getCaloriesConsumedBurned and getHealthProgress
-import { getHealthProgress, getCaloriesConsumedBurned } from "../services/HealthMetricService";
-// NEW: Import the specific BMI service
-import { calculateBMI } from "../services/UserService";
+import { getHealthProgress, getCaloriesConsumedBurned } from "../services/HealthMetricService"; // Use this endpoint
 
 const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
     // Get user details and authentication status from context
@@ -20,9 +18,6 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
     const [calorieChartData, setCalorieChartData] = useState([]); // Data for Calories chart
     const [summaryLoading, setSummaryLoading] = useState(true); // Loading state indicator
 
-    // NEW: State to hold the BMI fetched from the /bmi endpoint
-    const [currentBmi, setCurrentBmi] = useState('N/A');
-
     // Fetch dashboard-specific data when user logs in or authentication state changes
     useEffect(() => {
         // Only fetch data if the user is authenticated, has a userId, and is not an admin
@@ -30,21 +25,6 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             setSummaryLoading(true); // Start loading indicator
 
             const fetchAdvancedData = async () => {
-                
-                // --- Fetch Current BMI (using /bmi endpoint) ---
-                try {
-                    const bmiRes = await calculateBMI(userId);
-                    // The controller returns { bmi: 22.5 }
-                    if (bmiRes.data && bmiRes.data.bmi) {
-                        setCurrentBmi(bmiRes.data.bmi);
-                    } else {
-                        setCurrentBmi('N/A');
-                    }
-                } catch (e) {
-                    console.error("Failed to fetch BMI:", e);
-                    setCurrentBmi('N/A');
-                }
-
                 // --- Fetch Today's Calorie Summary (using UDF) ---
                 try {
                     const summaryRes = await getCalorieSummary(userId);
@@ -124,8 +104,6 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             setCalorieSummary(null);
             setBmiHistory([]);
             setCalorieChartData([]);
-            // NEW: Reset BMI state
-            setCurrentBmi('N/A');
             setSummaryLoading(false);
         }
     }, [userId, isAuthenticated, isAdmin]); // Re-run effect if these values change
@@ -138,10 +116,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
     // --- Aggregated Stats (User Only) ---
     const totalExercises = exercises.length; // Count based on basic list fetch (prop)
     const totalMeals = meals.length;         // Count based on basic list fetch (prop)
-    
-    // UPDATED: Use the new 'currentBmi' state instead of 'user.bmi'
-    const displayBMI = currentBmi !== 'N/A' ? parseFloat(currentBmi).toFixed(1) : 'N/A';
-    
+    const displayBMI = user?.bmi ? parseFloat(user.bmi).toFixed(1) : 'N/A';
     const displayWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
 
     // Logic for displaying net calorie status
@@ -203,7 +178,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4, duration: 0.5 }}
                     >
-                        🚀 Start Your Fitness Journey
+                         Start Your Fitness Journey
                     </motion.button>
                 </div>
                 {/* Features Grid */}
@@ -214,21 +189,21 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                     transition={{ delay: 0.6, duration: 0.7 }}
                 >
                     <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-primary-blue">
-                        <div className="text-5xl mb-4">📊</div>
+                        <div className="text-5xl mb-4"></div>
                         <h3 className="text-2xl font-bold text-text-dark mb-4">Advanced Analytics</h3>
                         <p className="text-text-muted">
                             Track BMI, calories, and progress with beautiful charts and insights to optimize your fitness strategy.
                         </p>
                     </div>
                     <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-green">
-                        <div className="text-5xl mb-4">💪</div>
+                        <div className="text-5xl mb-4"></div>
                         <h3 className="text-2xl font-bold text-text-dark mb-4">Workout Tracking</h3>
                         <p className="text-text-muted">
                             Log exercises, monitor calories burned, and build personalized workout routines that deliver results.
                         </p>
                     </div>
                     <div className="card text-center p-8 hover:shadow-xl transition-all duration-300 border-t-4 border-t-accent-red">
-                        <div className="text-5xl mb-4">🍎</div>
+                        <div className="text-5xl mb-4"></div>
                         <h3 className="text-2xl font-bold text-text-dark mb-4">Nutrition Monitoring</h3>
                         <p className="text-text-muted">
                             Track meals, count calories, and maintain perfect balance between nutrition and exercise goals.
@@ -245,19 +220,19 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                     <h2 className="text-3xl font-bold text-center text-text-dark mb-6">See What Awaits You</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                         <div className="bg-white rounded-xl p-4 text-center shadow-md">
-                            <div className="text-2xl mb-2">⚖️</div>
+                            <div className="text-2xl mb-2"></div>
                             <p className="font-semibold text-text-dark">BMI Tracking</p>
                         </div>
                         <div className="bg-white rounded-xl p-4 text-center shadow-md">
-                            <div className="text-2xl mb-2">📈</div>
+                            <div className="text-2xl mb-2"></div>
                             <p className="font-semibold text-text-dark">Progress Charts</p>
                         </div>
                         <div className="bg-white rounded-xl p-4 text-center shadow-md">
-                            <div className="text-2xl mb-2">🔥</div>
+                            <div className="text-2xl mb-2"></div>
                             <p className="font-semibold text-text-dark">Calorie Analysis</p>
                         </div>
                         <div className="bg-white rounded-xl p-4 text-center shadow-md">
-                            <div className="text-2xl mb-2">🎯</div>
+                            <div className="text-2xl mb-2"></div>
                             <p className="font-semibold text-text-dark">Goal Setting</p>
                         </div>
                     </div>
@@ -266,7 +241,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                             className="btn-primary px-8 py-3 rounded-full font-semibold"
                             onClick={() => onLoginClick("register")} // Changed to trigger register modal
                         >
-                            🔑 Unlock All Features - Join Now!
+                             Unlock All Features - Join Now!
                         </button>
                     </div>
                 </motion.div>
@@ -295,12 +270,12 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
                 transition={{ duration: 0.3 }}
                 className="space-y-8"
             >
-                <h1 className="text-3xl font-bold text-accent-green">Admin Panel 👑</h1>
+                <h1 className="text-3xl font-bold text-accent-green">Admin Panel</h1>
                 <p className="text-text-muted">Welcome back, {activeUserName || 'Admin'}. You have oversight over **{users.length}** registered users.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <StatCard title="Total Registered Users" value={users.length} icon="👥" color="#4F46E5" />
-                    <StatCard title="Actions Available" value="Manage Users" icon="🛠️" color="#F59E0B" />
-                    <StatCard title="Add New User" value="Register User" icon="➕" color="#10B981" />
+                    <StatCard title="Total Registered Users" value={users.length} icon="" color="#4F46E5" />
+                    <StatCard title="Actions Available" value="Manage Users" icon="" color="#F59E0B" />
+                    <StatCard title="Add New User" value="Register User" icon="" color="#10B981" />
                 </div>
                 <motion.div
                     className="card p-6"
@@ -339,7 +314,6 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {/* UPDATED: The 'value' prop now uses the new state variable 'displayBMI' */}
                 <StatCard title="Current BMI" value={displayBMI} icon="⚖️" color="#4F46E5" />
                 <StatCard title="Current Weight" value={displayWeight} icon="🏋️" color="#10B981" />
                 <StatCard title="Total Workouts" value={totalExercises} icon="💪" color="#F59E0B" />
@@ -379,7 +353,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
 
             {/* BMI History Chart */}
             <div className="card">
-                <h3 className="text-xl font-bold text-primary-blue mb-4">BMI History ⚖️</h3>
+                <h3 className="text-xl font-bold text-primary-blue mb-4">BMI History </h3>
                 <BMIChart data={bmiHistory} />
             </div>
 
@@ -387,7 +361,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Exercises */}
                 <div className="card">
-                    <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Workouts 💪</h3>
+                    <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Workouts </h3>
                     <div className="space-y-3">
                         {exercises.slice(0, 3).map((exercise, index) => (
                             <motion.div
@@ -407,7 +381,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
 
                 {/* Recent Meals */}
                 <div className="card">
-                    <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Meals 🍎</h3>
+                    <h3 className="text-xl font-bold text-text-dark mb-4 border-b border-gray-100 pb-3">Recent Meals</h3>
                     <div className="space-y-3">
                         {meals.slice(0, 3).map((meal, index) => (
                             <motion.div
