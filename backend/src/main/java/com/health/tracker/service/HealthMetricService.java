@@ -67,7 +67,7 @@ public class HealthMetricService {
             record.put("bmi", row[3]);
             record.put("bmiCategory", row[4]);
             // Adjust index for weight_change if needed, assuming it's the 6th element (index 5)
-            record.put("weightChange", row.length > 5 ? row[5] : null); // Check array length
+            record.put("weightChange", row.length > 6 ? row[6] : null); // Check array length
             progress.add(record);
         }
 
@@ -88,10 +88,9 @@ public class HealthMetricService {
         for (Object[] row : caloriesConsumedBurnedView) {
             Map<String, Object> record = new HashMap<>();
             record.put("userId", row[0]);
-            record.put("calories_consumed", row[1]);
-            record.put("calories_burned", row[2]);
-            // *** ADD THE DATE FIELD HERE ***
-            record.put("date", row[3]); // Assuming date is the 4th element (index 3)
+            record.put("date", row[1]);
+            record.put("calories_consumed", row[2]);
+            record.put("calories_burned", row[3]);
             list.add(record);
         }
         return list;
