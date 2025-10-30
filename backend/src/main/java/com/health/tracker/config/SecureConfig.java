@@ -32,7 +32,6 @@ public class SecureConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh-token", "/api/auth/emp/register", "/api/users/msg").permitAll()
-                        //.requestMatchers("/api/curry/all", "/api/curry/searchName/{name}", "/api/curry/searchPrice").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
@@ -48,16 +47,22 @@ public class SecureConfig {
         return configuration.getAuthenticationManager();
     }
 
-    // ✅ Define global CORS configuration
+    // ✅ Define global CORS configuration (includes local dev + your Vercel frontend)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000")); // your Angular frontend
+        // Exact origins (include https:// and full host)
+        config.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "https://health-trackerfrontend-ndec9sr8a-lakshans-projects-ceef0a72.vercel.app"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true); // important if using cookies/auth headers
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Apply to all API endpoints
         source.registerCorsConfiguration("/**", config);
         return source;
     }
