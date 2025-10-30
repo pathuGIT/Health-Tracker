@@ -26,16 +26,11 @@ jobs:
         id: discover
         shell: pwsh
         run: |
-          Write-Host "Searching for pom.xml..."
           $p = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter pom.xml -File -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $p) {
-            Write-Error "pom.xml not found in repository. Update repository layout or workflow."
-            exit 1
-          }
+          if (-not $p) { Write-Error "pom.xml not found"; exit 1 }
           $rel = $p.DirectoryName.Substring($env:GITHUB_WORKSPACE.Length).TrimStart('\')
           if ($rel -eq '') { $rel = '.' }
-          Write-Host "Found pom.xml in: $rel"
-          "build_dir=$rel" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          echo "build_dir=$rel" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
 
       - name: Build with Maven
         shell: pwsh
@@ -54,36 +49,23 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout (ensure workspace)
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: java-app
           path: java-app
 
-      - name: Find built JAR and copy to workspace root as app.jar
+      - name: Find JAR and copy to app.jar
         shell: pwsh
         run: |
-          Write-Host "Searching for a .jar file under ./java-app ..."
-          $jar = Get-ChildItem -Path "./java-app" -Recurse -Filter *.jar -File -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $jar) {
-            Write-Error "No JAR file found in downloaded artifact (java-app)."
-            exit 1
-          }
-          Write-Host "Found JAR: $($jar.FullName)"
+          $jar = Get-ChildItem -Path "./java-app" -Recurse -Filter *.jar -File | Select-Object -First 1
+          if (-not $jar) { Write-Error "No jar found"; exit 1 }
           Copy-Item -Path $jar.FullName -Destination "$env:GITHUB_WORKSPACE\app.jar" -Force
-          Write-Host "Copied jar to $env:GITHUB_WORKSPACE\app.jar"
 
-      - name: Show file list (debug)
-        shell: pwsh
-        run: |
-          Write-Host "Workspace files (top 200):"
-          Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse | Select-Object -First 200
-
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
+      - name: Deploy to Azure Web App (publish profile)
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'health-tracker-orionx'
