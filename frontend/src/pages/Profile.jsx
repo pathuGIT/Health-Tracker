@@ -6,7 +6,8 @@ import { useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
 // Import the necessary service functions
 import { getHealthProgress, getCaloriesConsumedBurned } from "../services/HealthMetricService";
-import { updateUser } from "../services/UserService"; // Import update service
+// UPDATED: Import both updateUser and calculateBMI
+import { updateUser, calculateBMI } from "../services/UserService";
 
 const Profile = () => {
     // Get user object and authentication states from context
@@ -17,6 +18,9 @@ const Profile = () => {
     const [calorieChartData, setCalorieChartData] = useState([]);
     const [chartsLoading, setChartsLoading] = useState(true);
     const [latestBmiCategory, setLatestBmiCategory] = useState('N/A');
+
+    // NEW: State to hold the BMI fetched from the /bmi endpoint
+    const [currentBmi, setCurrentBmi] = useState('N/A');
 
     // States for edit functionality
     const [isEditing, setIsEditing] = useState(false);
@@ -48,7 +52,22 @@ const Profile = () => {
             setChartsLoading(true);
 
             const fetchChartsData = async () => {
-                // BMI History and Category
+                
+                // --- Fetch Current BMI (using /bmi endpoint) ---
+                try {
+                    const bmiRes = await calculateBMI(userId);
+                    // The controller returns { bmi: 22.5 }
+                    if (bmiRes.data && bmiRes.data.bmi) {
+                        setCurrentBmi(bmiRes.data.bmi);
+                    } else {
+                        setCurrentBmi('N/A');
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch BMI:", e);
+                    setCurrentBmi('N/A');
+                }
+
+                // --- Fetch BMI History (View) ---
                 try {
                     const progressRes = await getHealthProgress(userId);
                     const sortedProgressData = progressRes.data;
@@ -70,7 +89,7 @@ const Profile = () => {
                     setLatestBmiCategory('N/A');
                 }
 
-                // Calorie Data
+                // --- Fetch Calorie Data (View) ---
                 try {
                     const calorieRes = await getCaloriesConsumedBurned(userId);
                     const rawData = calorieRes.data;
@@ -103,6 +122,8 @@ const Profile = () => {
             setBmiHistory([]);
             setCalorieChartData([]);
             setLatestBmiCategory('N/A');
+            // NEW: Reset BMI state
+            setCurrentBmi('N/A');
             setChartsLoading(false);
         }
     }, [userId, isAuthenticated]);
@@ -140,7 +161,9 @@ const Profile = () => {
                     ...prevUser,
                     ...updateData,
                     // Recalculate BMI if needed, or let backend handle it
-                    bmi: calculateBMI(updateData.weight, updateData.height)
+                    // UPDATED: Set BMI to null, so it forces a re-fetch or shows 'N/A'
+                    // A better solution would be to re-call fetchChartsData() here.
+                    bmi: null 
                 }));
             }
 
@@ -149,6 +172,17 @@ const Profile = () => {
 
             // Show success message
             alert("Profile updated successfully!");
+            
+            // NEW: Force re-fetch of BMI after update
+            try {
+                const bmiRes = await calculateBMI(userId);
+                if (bmiRes.data && bmiRes.data.bmi) {
+                    setCurrentBmi(bmiRes.data.bmi);
+                }
+            } catch (e) {
+                console.error("Failed to re-fetch BMI after update:", e);
+            }
+
 
         } catch (error) {
             console.error("Failed to update profile:", error);
@@ -158,8 +192,8 @@ const Profile = () => {
         }
     };
 
-    // Helper function to calculate BMI
-    const calculateBMI = (weight, height) => {
+    // Helper function to calculate BMI (only used as a fallback if needed)
+    const localCalculateBMI = (weight, height) => {
         if (!weight || !height) return null;
         // Convert height from cm to meters
         const heightInMeters = height / 100;
@@ -179,7 +213,8 @@ const Profile = () => {
         setIsEditing(false);
     };
 
-    const calculatedBMI = user?.bmi ? parseFloat(user.bmi).toFixed(1) : 'N/A';
+    // UPDATED: Use the new 'currentBmi' state
+    const calculatedBMI = currentBmi !== 'N/A' ? parseFloat(currentBmi).toFixed(1) : 'N/A';
 
     if (isAuthLoading || chartsLoading) {
         return (
@@ -290,18 +325,18 @@ const Profile = () => {
 
                             {/* Weight */}
                             {/*<div>*/}
-                            {/*    <label className="block text-sm font-medium text-text-muted mb-1">*/}
-                            {/*        Weight (kg)*/}
-                            {/*    </label>*/}
-                            {/*    <input*/}
-                            {/*        type="number"*/}
-                            {/*        name="weight"*/}
-                            {/*        value={editForm.weight}*/}
-                            {/*        onChange={handleEditChange}*/}
-                            {/*        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent"*/}
-                            {/*        min="1"*/}
-                            {/*        step="0.1"*/}
-                            {/*    />*/}
+                            {/* <label className="block text-sm font-medium text-text-muted mb-1">*/}
+                            {/* Weight (kg)*/}
+                            {/* </label>*/}
+                            {/* <input*/}
+                            {/* type="number"*/}
+                            {/* name="weight"*/}
+                            {/* value={editForm.weight}*/}
+                            {/* onChange={handleEditChange}*/}
+                            {/* className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent"*/}
+                            {/* min="1"*/}
+                            {/* step="0.1"*/}
+                            {/* />*/}
                             {/*</div>*/}
 
                             {/* Height */}
@@ -382,6 +417,7 @@ const Profile = () => {
                     {/* BMI Value */}
                     <div className="bg-primary-blue bg-opacity-10 p-4 rounded-xl border border-primary-blue/20">
                         <p className="text-sm font-medium text-primary-blue">Current BMI</p>
+                        {/* UPDATED: This now uses the state variable 'calculatedBMI' */}
                         <p className="text-xl font-bold text-primary-blue">{calculatedBMI}</p>
                     </div>
                     {/* BMI Category */}

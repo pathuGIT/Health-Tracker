@@ -6,7 +6,9 @@ import CaloriesChart from "./charts/CaloriesChart";
 import { useAuth } from "../context/AuthContext";
 import { getCalorieSummary } from "../services/UserService";
 // Import getCaloriesConsumedBurned and getHealthProgress
-import { getHealthProgress, getCaloriesConsumedBurned } from "../services/HealthMetricService"; // Use this endpoint
+import { getHealthProgress, getCaloriesConsumedBurned } from "../services/HealthMetricService";
+// NEW: Import the specific BMI service
+import { calculateBMI } from "../services/UserService";
 
 const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) => {
     // Get user details and authentication status from context
@@ -18,6 +20,9 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
     const [calorieChartData, setCalorieChartData] = useState([]); // Data for Calories chart
     const [summaryLoading, setSummaryLoading] = useState(true); // Loading state indicator
 
+    // NEW: State to hold the BMI fetched from the /bmi endpoint
+    const [currentBmi, setCurrentBmi] = useState('N/A');
+
     // Fetch dashboard-specific data when user logs in or authentication state changes
     useEffect(() => {
         // Only fetch data if the user is authenticated, has a userId, and is not an admin
@@ -25,6 +30,21 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             setSummaryLoading(true); // Start loading indicator
 
             const fetchAdvancedData = async () => {
+                
+                // --- Fetch Current BMI (using /bmi endpoint) ---
+                try {
+                    const bmiRes = await calculateBMI(userId);
+                    // The controller returns { bmi: 22.5 }
+                    if (bmiRes.data && bmiRes.data.bmi) {
+                        setCurrentBmi(bmiRes.data.bmi);
+                    } else {
+                        setCurrentBmi('N/A');
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch BMI:", e);
+                    setCurrentBmi('N/A');
+                }
+
                 // --- Fetch Today's Calorie Summary (using UDF) ---
                 try {
                     const summaryRes = await getCalorieSummary(userId);
@@ -104,6 +124,8 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
             setCalorieSummary(null);
             setBmiHistory([]);
             setCalorieChartData([]);
+            // NEW: Reset BMI state
+            setCurrentBmi('N/A');
             setSummaryLoading(false);
         }
     }, [userId, isAuthenticated, isAdmin]); // Re-run effect if these values change
@@ -116,7 +138,10 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
     // --- Aggregated Stats (User Only) ---
     const totalExercises = exercises.length; // Count based on basic list fetch (prop)
     const totalMeals = meals.length;         // Count based on basic list fetch (prop)
-    const displayBMI = user?.bmi ? parseFloat(user.bmi).toFixed(1) : 'N/A';
+    
+    // UPDATED: Use the new 'currentBmi' state instead of 'user.bmi'
+    const displayBMI = currentBmi !== 'N/A' ? parseFloat(currentBmi).toFixed(1) : 'N/A';
+    
     const displayWeight = activeUserWeight ? `${activeUserWeight} kg` : 'N/A';
 
     // Logic for displaying net calorie status
@@ -314,6 +339,7 @@ const Dashboard = ({ users, exercises, meals, showLoginPrompt, onLoginClick }) =
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {/* UPDATED: The 'value' prop now uses the new state variable 'displayBMI' */}
                 <StatCard title="Current BMI" value={displayBMI} icon="⚖️" color="#4F46E5" />
                 <StatCard title="Current Weight" value={displayWeight} icon="🏋️" color="#10B981" />
                 <StatCard title="Total Workouts" value={totalExercises} icon="💪" color="#F59E0B" />
