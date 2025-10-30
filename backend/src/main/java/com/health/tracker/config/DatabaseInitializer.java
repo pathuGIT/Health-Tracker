@@ -96,8 +96,21 @@ public class DatabaseInitializer implements CommandLineRunner {
 
                 // Calories Consumed and Burned View
                 "CREATE OR REPLACE VIEW calories_consumed_burned_view AS " +
-                        "select m.user_id, m.calories_consumed, e.calories_burned, e.date from meal m inner join exercise e on m.user_id = e.user_id"
+                        "SELECT \n" +
+                        "    m.user_id,\n" +
+                        "    m.date,\n" +
+                        "    SUM(m.calories_consumed) AS calories_consumed,\n" +
+                        "    SUM(e.calories_burned) AS calories_burned\n" +
+                        "FROM \n" +
+                        "    meal m\n" +
+                        "INNER JOIN \n" +
+                        "    exercise e \n" +
+                        "    ON m.user_id = e.user_id \n" +
+                        "    AND m.date = e.date\n" +
+                        "GROUP BY \n" +
+                        "    m.user_id, m.date\n"
         };
+
 
         for (String view : viewStatements) {
             try {
