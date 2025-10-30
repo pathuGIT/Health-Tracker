@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy JAR app to Azure Web App - health-tracker-orionx
 
 on:
@@ -13,51 +10,64 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Java version
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'microsoft'
 
+      - name: Locate pom.xml
+        id: discover
+        shell: pwsh
+        run: |
+          $p = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter pom.xml -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $p) { Write-Error "pom.xml not found"; exit 1 }
+          $rel = $p.DirectoryName.Substring($env:GITHUB_WORKSPACE.Length).TrimStart('\')
+          if ($rel -eq '') { $rel = '.' }
+          echo "build_dir=$rel" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+
       - name: Build with Maven
-        run: mvn clean install
+        shell: pwsh
+        run: mvn -B -f "${{ steps.discover.outputs.build_dir }}/pom.xml" clean package
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: java-app
-          path: '${{ github.workspace }}/target/*.jar'
+          path: ${{ steps.discover.outputs.build_dir }}/target/*.jar
 
   deploy:
     runs-on: windows-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
-      - name: Download artifact from build job
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: java-app
-      
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_4B026C48B3974CACA07CFC3418483786 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_99CBF0BD7A3C4CF5857E9126D2BDA21C }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D769AA26A1094AE48330BE4DCE89D0CA }}
+          path: java-app
 
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
+      - name: Find JAR and copy to app.jar
+        shell: pwsh
+        run: |
+          $jar = Get-ChildItem -Path "./java-app" -Recurse -Filter *.jar -File | Select-Object -First 1
+          if (-not $jar) { Write-Error "No jar found"; exit 1 }
+          Copy-Item -Path $jar.FullName -Destination "$env:GITHUB_WORKSPACE\app.jar" -Force
+
+      - name: Deploy to Azure Web App (publish profile)
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'health-tracker-orionx'
-          slot-name: 'Production'
-          package: '*.jar'
-          
+          package: 'app.jar'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
