@@ -57,7 +57,7 @@ api.interceptors.response.use(
         
         // ✅ Create a NEW axios instance without interceptors for refresh call
         const refreshApi = axios.create({
-          baseURL: 'http://localhost:8080/api',
+          baseURL: 'https://health-tracker-orionx-escsczh2gcedbzfy.eastasia-01.azurewebsites.net/api',
         });
         
         const { data } = await refreshApi.post('/auth/refresh-token', {
