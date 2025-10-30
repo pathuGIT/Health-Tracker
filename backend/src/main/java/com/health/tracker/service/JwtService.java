@@ -32,7 +32,7 @@ public class JwtService {
                     .claim("role", role)           // custom claim
                     .subject(username)
                     .issuedAt(new Date(System.currentTimeMillis()))
-                    .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 2))
+                    .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60))
                     .signWith(secretKey, SignatureAlgorithm.HS256)
                     .compact();
         } catch (InvalidKeyException e) {
