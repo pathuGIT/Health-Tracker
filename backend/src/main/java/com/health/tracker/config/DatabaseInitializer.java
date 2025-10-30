@@ -137,7 +137,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                             "    SELECT weight, height INTO user_weight, user_height " +
                             "    FROM users WHERE user_id = p_user_id; " +
                             "    IF user_weight IS NOT NULL AND user_height IS NOT NULL THEN " +
-                            "        SELECT user_weight / (user_height * user_height) as bmi; " +
+                            "        SELECT user_weight / ((user_height/100) * (user_height/100)) as bmi; " +
                             "    ELSE " +
                             "        SELECT NULL as bmi; " +
                             "    END IF; " +
