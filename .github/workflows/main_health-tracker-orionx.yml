@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy JAR app to Azure Web App - health-tracker-orionx
 
 on:
@@ -13,51 +10,82 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Java version
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'microsoft'
 
+      - name: Locate pom.xml
+        id: discover
+        shell: pwsh
+        run: |
+          Write-Host "Searching for pom.xml..."
+          $p = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter pom.xml -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $p) {
+            Write-Error "pom.xml not found in repository. Update repository layout or workflow."
+            exit 1
+          }
+          $rel = $p.DirectoryName.Substring($env:GITHUB_WORKSPACE.Length).TrimStart('\')
+          if ($rel -eq '') { $rel = '.' }
+          Write-Host "Found pom.xml in: $rel"
+          "build_dir=$rel" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+
       - name: Build with Maven
-        run: mvn clean install
+        shell: pwsh
+        run: mvn -B -f "${{ steps.discover.outputs.build_dir }}/pom.xml" clean package
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: java-app
-          path: '${{ github.workspace }}/target/*.jar'
+          path: ${{ steps.discover.outputs.build_dir }}/target/*.jar
 
   deploy:
     runs-on: windows-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
+      - name: Checkout (ensure workspace)
+        uses: actions/checkout@v4
+
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: java-app
-      
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_5B65CFCD06BB4E01BDC93AEE0E942A55 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_BF4A613903D54A97B51C1C5465980538 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D88220CD5B984EC1812C492FE51F4611 }}
+          path: java-app
+
+      - name: Find built JAR and copy to workspace root as app.jar
+        shell: pwsh
+        run: |
+          Write-Host "Searching for a .jar file under ./java-app ..."
+          $jar = Get-ChildItem -Path "./java-app" -Recurse -Filter *.jar -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $jar) {
+            Write-Error "No JAR file found in downloaded artifact (java-app)."
+            exit 1
+          }
+          Write-Host "Found JAR: $($jar.FullName)"
+          Copy-Item -Path $jar.FullName -Destination "$env:GITHUB_WORKSPACE\app.jar" -Force
+          Write-Host "Copied jar to $env:GITHUB_WORKSPACE\app.jar"
+
+      - name: Show file list (debug)
+        shell: pwsh
+        run: |
+          Write-Host "Workspace files (top 200):"
+          Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse | Select-Object -First 200
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'health-tracker-orionx'
-          slot-name: 'Production'
-          package: '*.jar'
-          
+          package: 'app.jar'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
