@@ -27,6 +27,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             // Execute triggers
             createTriggers();
 
+            createEvents();
+
             System.out.println("Advanced database objects initialized successfully");
         } catch (Exception e) {
             System.err.println("Error initializing database objects: " + e.getMessage());
@@ -267,6 +269,39 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         } catch (Exception e) {
             System.err.println("Error creating triggers: " + e.getMessage());
+        }
+    }
+
+    private void createEvents() {
+        System.out.println("===== CREATING EVENTS (IF NOT EXISTS) =====");
+        
+        try {
+            // Note: SET GLOBAL requires SUPER privilege. This might fail on some hosted databases.
+            // It's often better to set this in the database configuration (e.g., my.cnf or Azure portal).
+            try {
+                jdbcTemplate.execute("SET GLOBAL event_scheduler = ON;");
+                System.out.println("Event scheduler enabled.");
+            } catch (Exception e) {
+                System.err.println("Could not enable event scheduler. MySQL user may lack SUPER privilege. " +
+                                   "Please ensure event_scheduler=ON is set in your MySQL config. " + e.getMessage());
+            }
+
+            jdbcTemplate.execute("DROP EVENT IF EXISTS clear_old_alerts;");
+
+            String eventSql =
+                    "CREATE EVENT clear_old_alerts " +
+                    "ON SCHEDULE EVERY 1 DAY " +
+                    "DO " +
+                    "BEGIN " +
+                    "    DELETE FROM user_alerts " +
+                    "    WHERE alert_date < NOW() - INTERVAL 30 DAY AND is_read = TRUE; " +
+                    "END";
+
+            jdbcTemplate.execute(eventSql);
+            System.out.println("Event 'clear_old_alerts' created successfully.");
+
+        } catch (Exception e) {
+            System.err.println("Error creating event: " + e.getMessage());
         }
     }
 
