@@ -54,8 +54,7 @@ public class SecureConfig {
         // Exact origins (include https:// and full host)
         config.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "https://health-trackerfrontend-ndec9sr8a-lakshans-projects-ceef0a72.vercel.app",
-                "https://health-trackerfrontend.vercel.app"
+                "https://healthtracker-puce.vercel.app/"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
